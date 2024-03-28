@@ -1,0 +1,193 @@
+---
+title: "CUBAN MIGRATION ANALYSIS"
+author: "Gabriel Hernandez"
+date: "2024-03-21"
+output: html_document
+---
+
+
+```{r} 
+
+
+```
+
+
+
+```{r install packages}
+install.packages('tidyverse')
+install.packages('tidycensus')
+install.packages('sf')
+install.packages('tigris')
+install.packages('kableExtra')
+install.packages('ggforce') #built above ggplot 2
+install.packages('osmdata')
+install.packages("flexdashboard") #make dashboards
+#install.packages("scales") #ggplot 2 scales and legend grammar
+install.packages("shiny")
+library(tidyverse)
+library(tidycensus)
+library(sf)
+library(kableExtra)
+library(osmdata)
+library(ggforce)
+library(tigris)
+library(flexdashboard)
+#library(scales)
+library(shiny)
+
+
+options(scipen=999)
+options(tigris_class = "sf")
+
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
+
+#Load API KEY
+census_api_key("3aedcfd189958d66a813a29a4b33580e78657644", overwrite = TRUE)
+#Set CRS
+crs='EPSG:3857'
+
+
+```
+
+
+
+```{r pressure, echo=FALSE}
+# vars for 2009 and 2022 for change over time comparison
+
+acs_variable_list.2009 <- load_variables(2009, #year
+                                         "acs5", #five year ACS estimates
+                                         cache = TRUE)
+
+acs09_vars <- c("B06003_013E", #Foreign Born - PLACE OF BIRTH BY SEX IN THE UNITED STATES
+              "B05002_013E", #Estimate!!Total!!Foreign born - PLACE OF BIRTH BY CITIZENSHIP STATUS
+              "B05007_039E", #Estimate!!Total!!Latin America!!Caribbean!!- Entered before 1980
+              "B25002_003E", #stimate!!Total!!Vacant OCCUPANCY STATUS
+              "B09016_002E", #Estimate!!Total!!In households - HOUSEHOLD TYPE (INCLUDING LIVING ALONE) BY RELATIONSHIP
+              "B19013_001E", #Estimate!!Median household income in the past 12 months (in 2009 inflation-adjusted dollars)
+              "B19037A_053E", #Estimate!!Total!!Householder 65 years and over
+              "B06012_002E", #Total!!Below 100 percent of the poverty level
+              "B25071_001E", #Median gross rent as a percentage of household income
+              "B25035_001E", #Median year structure built
+              "B19057_001E", #Total - PUBLIC ASSISTANCE INCOME IN THE PAST 12 MONTHS FOR HOUSEHOLDS
+              "B25001_001E", #Total HOUSING UNITS
+              "B05006_127E", #Total!!Americas!!Latin America!!Caribbean!!Cuba
+              "B25077_001E") #med values
+
+acs22_vars <- c("B06012PR_002E", #Tot Below 100 percent of the poverty level
+               "B25002_003E", #TotalVacant
+               "B21004_001E", #Median income in the past 12 months (in 2022 inflation-adjusted dollars
+               "B09021_023E", #65 years and over Lives alone
+               "B25136_001E", #Total Housing Units
+               "B25071_001E", #Median gross rent as a percentage of household income
+               "B05006_143E", #Total:!!Americas:!!Latin America:!!Caribbean:!!Cuba
+               "B19057_002E", #Total:!!With public assistance income
+               "B25035_001E", #Median year structure built
+               "B25077_001E" #med values
+       )
+
+
+```
+
+
+```{r}
+
+ USA_2009 <- get_acs(geography = "county",
+                             year = 2009, 
+                             variables = acs09_vars,
+                             geometry = TRUE, 
+                             output = "wide") 
+USA_2009 <- USA_2009 %>%
+          rename(
+          fb_placebysex.2009 = B06003_013E,
+          totalfb_placebycitizenshipstatus.2009 = B05002_013E,
+          total_carib_1980.2009 = B05007_039E,
+          total_vacancy_O_status.2009 = B25002_003E,
+          total_householdtype_relationship.09 = B09016_002E,
+          med_hh_inc.09 = B19013_001E,
+          hh_65up.09 = B19037A_053E,
+          Total_b_100pov.09 = B06012_002E,
+          gross_v_income_percentage.09 = B25071_001E,
+          med_built_year.09 = B25035_001E,
+          tot_publicass_inc.09 = B19057_001E,
+          tot_housingunits.09 = B25001_001E,
+          cub_fb_total09 = B05006_127E,
+          med_houseval09 = B25077_001E
+          )%>%
+          mutate(vacancyPct.2009 = total_vacancy_O_status.2009/tot_housingunits.09) %>% # Get Vacanct Rate
+          st_as_sf(crs = crs)
+
+USA_2022 <- get_acs(geography = "county",
+                             year = 2022, 
+                             variables = acs22_vars, 
+                             geometry = TRUE, 
+                             output = "wide") 
+USA_2022 <- USA_2022 %>%
+         rename(
+         tot_below100pov22 = B06012PR_002E,
+         tot_vacant22 = B25002_003E,
+         med_inc22 = B21004_001E,
+         up65_alone22 = B09021_023E,
+         tot_housingunits22 =B25136_001E,
+         gross_v_inc_perc22 = B25071_001E,
+         tot_fb_cuba22 = B05006_143E,
+         tot_pa_inc22 = B19057_002E,
+         med_yb22 = B25035_001E,
+         med_values22 = B25077_001E)%>%
+  mutate(vacpct22 = (tot_vacant22/tot_housingunits22)) %>%
+  st_as_sf(crs = crs)
+
+
+```
+
+```{r}
+
+#Merge the dataframes
+
+USA0922_df <- st_drop_geometry(USA_2022,USA_2009)%>%
+         left_join(USA_2009 , USA_2022, by= c("GEOID"))%>%
+         mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
+           change_med_inc = med_inc22 - med_hh_inc.09,
+           change_med_values = med_values22 - med_houseval09,
+           change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
+           change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
+
+sf.ACS0922 <-st_join(USA_2009,USA_2022)%>%
+    mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
+         change_med_inc = med_inc22 - med_hh_inc.09,
+         change_med_values = med_values22 - med_houseval09,
+         change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
+         change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
+
+
+#arrange counties decending
+USA0922_df <- USA0922_df %>%
+              arrange(USA0922_df, desc(change_cuba_fb))
+                      
+
+
+
+```
+
+
+
+```{r}
+
+#Isolate State and COunty for Group By Analysis
+USA0922_df <- USA0922 %>%
+  separate(
+  median_age,
+  NAME,
+  into = c("county", "state"),
+  sep = ", "
+  )
+
+
+sf.ACS0922 <- sf.ACS0922 %>%
+  separate(
+  median_age,
+  NAME,
+  into = c("county", "state"),
+  sep = ", "
+  )
+
+#to visualize per state grouping, do I need to use tigris to get the geometries for each state then merge it with a group by state function?
