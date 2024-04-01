@@ -7,7 +7,6 @@ output: html_document
 
 
 ```{r} 
-#options
 
 
 ```
@@ -20,7 +19,6 @@ install.packages('tidycensus')
 install.packages('sf')
 install.packages('tigris')
 install.packages('kableExtra')
-install.packages('reshape2')
 install.packages('ggforce') #built above ggplot 2
 install.packages('osmdata')
 install.packages("flexdashboard") #make dashboards
@@ -29,11 +27,9 @@ install.packages("shiny")
 library(tidyverse)
 library(tidycensus)
 library(sf)
-library(ggplot2)
 library(kableExtra)
 library(osmdata)
 library(ggforce)
-library(reshape2)
 library(tigris)
 library(flexdashboard)
 #library(scales)
@@ -45,8 +41,6 @@ options(tigris_class = "sf")
 
 source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
 
-veocuba_cp <- c("#ca5733","#68a6d5", "#3b914e", "#fbc61d")
-
 #Load API KEY
 census_api_key("3aedcfd189958d66a813a29a4b33580e78657644", overwrite = TRUE)
 #Set CRS
@@ -55,77 +49,7 @@ crs='EPSG:3857'
 
 ```
 
-```{r}
-#Read in Raw CSV data
 
-CBP_Apprehensions2123 <- read.csv("E:/Github/CubanMigration/data/CBP_Apprehensions_Encounters2124.csv")
-
-UN_2020_cubansabroad <- read.csv("E:/Github/CubanMigration/data/UN_2020_Cuban_Migrants_Abroad.csv")
-
-UN_netmigration19502020 <- read.csv("E:/Github/CubanMigration/data/UN_NetMigration_19502020.csv")
-
-#For plotting make the data wide
-CBPAPP_2123 <- melt(CBP_Apprehensions2124, id.vars = "year")
-
-```
-
-
-
-```{r}
-
-#Table for CBP Apprehensions
-
-totals_CBP2123 <- CBPAPP_2123 %>%
-        group_by(variable)%>%
-        summarize(total_2123=sum(value))%>%
-        mutate(Percent_Total = round(total_2123/7924245,2))
-  
-  
-totals_CBP2123%>%
-  kbl(caption= "Total Apprehensions/Encounters 2021-2023")%>%
-kable_classic_2(full_width = F, html_font = "Constantia")%>%
-kable_styling(bootstrap_options = c("striped","hover"))
-        
-
-```
-
-
-```{r}
-
-#this chunk is to create line graphs of the nation/mexican/cuban over time 
-
-ggplot(CBPAPP_2124, aes(x = year, y = value, color = variable)) +  # Color by variable (country)
-  geom_line() +                                               # Create lines for each country
-  labs(title = "U.S. Customs and Border Patrol: Apprehensions",                 # Set a title
-       x = "Year",                                          # Label for x-axis
-       y = "Number of Apprehensions")+
-  scale_x_discrete(breaks = unique(CBPAPP_2124$year), labels = unique(CBPAPP_2124$year))+
-  scale_color_manual(values = veocuba_cp)
-
-#issue of line placement adn x axis
-
-```
-
-```{r}
-#this chunk will create the line graph for 1950-2020 migration
-
-UN_netmigration19502020$Net_Migration_Cuba <- as.numeric(UN_netmigration19502020$Net_Migration_Cuba)
-ggplot(UN_netmigration19502020, aes(x = Year, y= Net_Migration_Cuba)) +  
-  geom_line() +                                              
-  labs(title = "UN Net Migration: Cuba",                 # Set a title
-       x = "Year",                                          # Label for x-axis
-       y = "NET MIGRATION")
-
-#not displaying any data
-
-```
-
-
-```{r}
-
-# this chunk will make a world tmap of the world distribution of cuban migrant data
-
-```
 
 ```{r pressure, echo=FALSE}
 # vars for 2009 and 2022 for change over time comparison
@@ -267,3 +191,19 @@ sf.ACS0922 <- sf.ACS0922 %>%
   )
 
 #to visualize per state grouping, do I need to use tigris to get the geometries for each state then merge it with a group by state function?
+```
+The goals for the next chunks of code:
+
+We want to pull all of the MSA (metropolitan areas) into one object.
+
+-We want to also arrange the counties with the highest negative and positive percent changes (top 25) so that we can create a vector of just those county  and state names, essentially, we want those GEOIDs (state county combo) as a vector i believe, or something that lets us ask of get acs that specific county state combo (perhao)
+--make sure to reindex when the arrangement takes place so you can do a filter by first 25 positions.
+----the purpose would be to do a get acs call for the census tract level data on fb cuban population, and change over time.
+-----we also want to be able to ask of a query: if an MSA boundary is within any of these counties, create an object that contains only those MSAs
+-----------------the purpose would be for the final interactive t map which will include the census tract visualizations for the top 25 counties (negative and positive flows combined) and the borders of the MSAs to visualize if the community exists inside or outside of a metropolitan area. 
+
+-I think the county stuff does not need to be visualized independently. Instead we will create a table that displays the county name, state, change over time of cuban population and the quantity of the population
+
+-We need to fix the line graph, make it prettier
+-we need the bar plot to also look better for the net migration
+-the encounters table is solid, maybe just make it prettier. 
