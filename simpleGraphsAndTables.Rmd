@@ -1,0 +1,133 @@
+---
+title: "Graph_Drafts"
+author: "Timothy Oliver"
+date: "2024-04-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+options(scipen=999)
+options(tigris_class = "sf")
+options(tigris_cache_dir= TRUE)
+
+base_aspect=0.5
+font="Times New Roman"
+```
+
+```{r install packages}
+install.packages('tidyverse')
+install.packages('tidycensus')
+install.packages('sf')
+install.packages('tigris')
+install.packages('patchwork')
+install.packages('kableExtra')
+install.packages('ggforce') #built above ggplot 2
+install.packages('osmdata')
+install.packages("mapview")
+install.packages("flexdashboard") #make dashboards
+#install.packages("scales") #ggplot 2 scales and legend grammar
+install.packages("shiny")
+library(tidyverse)
+library(patchwork)
+library(mapview)
+library(tidycensus)
+library(sf)
+library(kableExtra)
+library(osmdata)
+library(ggforce)
+library(tigris)
+library(flexdashboard)
+#library(scales)
+library(shiny)
+
+
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
+
+#Load API KEY
+census_api_key("3aedcfd189958d66a813a29a4b33580e78657644", overwrite = TRUE)
+#Set CRS
+crs='EPSG:3857'
+```
+
+## View Data
+
+Some differentiation/annotation of datasets is needed.
+
+<ins>ex: **Is the apprehension encounters for all Cuban (and Mexican) migrants?**<br>**What is the timeframe/years for the migrants abroad dataset?**</ins>
+```{r View Data}
+
+abroadMig %>% 
+  arrange(desc(Number.of.Immigrants)) %>%
+  kbl(caption="Cuban Migrants Abroad Data") %>% 
+  kable_styling(bootstrap_options = c("striped","bordered"))
+
+apprehension %>% 
+  arrange(desc(cuban)) %>%
+  kbl(caption="Cuban/Mexican Migrants Apprehension Encounters") %>% 
+  kable_styling(bootstrap_options = c("striped","bordered"))
+
+# Net Recorded Migration from Cuba in 5 Year Increments
+netMig %>% 
+  arrange(Net_Migration_Cuba) %>%
+  kbl(caption="Net Recorded Migration from Cuba in 5 Year Increments") %>% 
+  kable_styling(bootstrap_options = c("striped","bordered"))
+
+```
+
+## Simple Graphs
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+
+ggplot(data=abroadMig,
+       mapping=aes(x=Country)) +
+  geom_bar(data=abroadMig[abroadMig$Number.of.Immigrants>25000,],aes(y=Number.of.Immigrants),stat="identity") +
+  geom_label(data=abroadMig[abroadMig$Number.of.Immigrants>25000,],
+             aes(label=..y..,y=Number.of.Immigrants),stat="identity",color="brown",hjust=1.5,
+             # position=position_dodge(width=0.9)
+             )+
+  labs(x="Country",
+       y= "Cuban Immigrant Count",
+       title = "Countries with Over 25K Cuban Immigrants",
+       subtitle = "Put Year Here",
+       caption = "Source: United Nations (UN_2020_Cuban_Migrants_Abroad)")+
+  theme(
+        ## Grid elements
+        panel.grid.major = element_blank(), # strip major gridlines
+        panel.grid.minor = element_blank(), # same for minor ones
+        aspect.ratio = 0.5, #just one number? ... height:width (for fixed display)
+        panel.background = element_rect(
+          fill = "#fcfcf4",
+          colour = "#5eb1c6"
+          # linetype = "dash"
+        ),
+        axis.ticks = element_blank(),
+        axis.text.x = element_blank(),
+        
+        ## Text elements
+        plot.title = element_text(
+          family = font,
+          size = 20,
+          face = 'bold',
+          hjust = 0,
+          vjust = 2),
+        
+        plot.subtitle = element_text(
+          family = font,
+          size = 14),
+        
+        plot.caption = element_text(
+          family = font,
+          size = 9,
+          hjust = 1)
+        )
+          # coord_flip()# looks good except for small lables
+
+
+
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
