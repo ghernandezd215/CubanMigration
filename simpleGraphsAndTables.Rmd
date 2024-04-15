@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = TRUE,message = F,warning=F)
 
 options(scipen=999)
 options(tigris_class = "sf")
@@ -16,7 +16,7 @@ base_aspect=0.5
 font="Times New Roman"
 ```
 
-```{r install packages}
+```{r install_packages, eval=F}
 install.packages('tidyverse')
 install.packages('tidycensus')
 install.packages('sf')
@@ -29,6 +29,11 @@ install.packages("mapview")
 install.packages("flexdashboard") #make dashboards
 #install.packages("scales") #ggplot 2 scales and legend grammar
 install.packages("shiny")
+```
+
+
+```{r load_libraries, echo=F}
+
 library(tidyverse)
 library(patchwork)
 library(mapview)
@@ -51,11 +56,22 @@ census_api_key("3aedcfd189958d66a813a29a4b33580e78657644", overwrite = TRUE)
 crs='EPSG:3857'
 ```
 
+```{r read_csvs}
+
+abroadMig <- read.csv(paste0(getwd(),"/data/UN_2020_Cuban_Migrants_Abroad.csv"))
+
+apprehension <- read.csv(paste0(getwd(),"/data/CBP_Apprehensions_Encounters2124.csv"))
+
+netMig <- read.csv(paste0(getwd(),"/data/UN_NetMigration_19502020.csv"))
+```
+
+
+
 ## View Data
 
 Some differentiation/annotation of datasets is needed.
 
-<ins>ex: **Is the apprehension encounters for all Cuban (and Mexican) migrants?**<br>**What is the timeframe/years for the migrants abroad dataset?**</ins>
+<ins>**Is the apprehension encounters for all Cuban (and Mexican) migrants?**<br>**What is the timeframe/years for the migrants abroad dataset?**</ins>
 ```{r View Data}
 
 abroadMig %>% 
@@ -130,4 +146,4 @@ ggplot(data=abroadMig,
 
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+
