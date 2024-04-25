@@ -18,6 +18,7 @@ output: html_document
 install.packages('tidyverse')
 install.packages('tidycensus')
 install.packages('sf')
+install.packages('stringr')
 install.packages('tigris')
 install.packages('patchwork')
 install.packages('kableExtra')
@@ -39,6 +40,7 @@ library(tigris)
 library(flexdashboard)
 #library(scales)
 library(shiny)
+library(stringr)
 
 
 options(scipen=999)
@@ -83,7 +85,8 @@ acs09_vars <- c("B06003_013E", #Foreign Born - PLACE OF BIRTH BY SEX IN THE UNIT
               "B05006_127E", #Total!!Americas!!Latin America!!Caribbean!!Cuba
               "B25077_001E") #med values
 
-acs22_vars <- c("B06012PR_002E", #Tot Below 100 percent of the poverty level
+acs22load <- load_variables(2022, "acs5", cache = TRUE)
+acs22_vars <-c("B06012PR_002E", #Tot Below 100 percent of the poverty level
                "B25002_003E", #TotalVacant
                "B21004_001E", #Median income in the past 12 months (in 2022 inflation-adjusted dollars
                "B09021_023E", #65 years and over Lives alone
@@ -203,7 +206,7 @@ The goal is to get the change over time as a percentage and then tie it to count
 
 ```{r}
 
- USA_2009 <- get_acs(geography = "county",
+USA_2009 <- get_acs(geography = "county",
                              year = 2009, 
                              variables = acs09_vars,
                              geometry = TRUE, 
@@ -248,7 +251,7 @@ USA_2022 <- USA_2022 %>%
   mutate(vacpct22 = (tot_vacant22/tot_housingunits22)) %>%
   st_as_sf(crs = crs)
 
-USA_metro_area = 
+ 
 
 
 ```
@@ -264,23 +267,41 @@ USA0922_df <- st_drop_geometry(USA_2022,USA_2009)%>%
            change_med_values = med_values22 - med_houseval09,
            change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
            change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
+#===========================================================
+#This does not work, returns multiples of the same county
+#===========================================================
+#sf.ACS0922 <-st_join(USA_2009,USA_2022)%>%
+   # mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
+   #      change_med_inc = med_inc22 - med_hh_inc.09,
+    #     change_med_values = med_values22 - med_houseval09,
+    #     change_cuba_fb = tot_fb_cuba22 - cub_fb_total09, 
+    #      change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
 
-sf.ACS0922 <-st_join(USA_2009,USA_2022)%>%
-    mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
-         change_med_inc = med_inc22 - med_hh_inc.09,
-         change_med_values = med_values22 - med_houseval09,
-         change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
-         change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
 
+#Filter to get the largest and lowest decreases. using 500 is an arbitrary number. With more feedback and domain knowledge I could choose another
+USA0922_df_filtered_decrease <- USA0922_df %>%
+              filter(change_cuba_fb < -500)%>%
+              select(NAME.x, GEOID, geometry,med_inc22,up65_alone22, tot_housingunits22, gross_v_inc_perc22,                                 tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct)
 
-#arrange counties decending
-USA0922_df <- USA0922_df %>%
-              arrange(USA0922_df, desc(change_cuba_fb))
-                      
+USA0922_df_filtered_increase <- USA0922_df %>% 
+       filter(change_cuba_fb > 500) %>%
+       select(NAME.x, GEOID, geometry, med_inc22,up65_alone22, tot_housingunits22, gross_v_inc_perc22,                                 tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct)
+  
+#Combine the two dfs because it is the object that will be used to create the dictionary for the get acs call
+
+change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_increase)
+
+var_list_final<- unique(change_fbcuban0922)
+
+#use this ^^^^^ to create model for analysis
+
 
 
 
 ```
+
+
+
 Upon analyzing the counties, choose filters to get the most increasing and decreasing populations. Get the ID of each of these counties in a way so we can intersect the USA_allcba object to get the geometries of only the metro and micro areas that are within the chosen counties.
 
 We also have to iterate those counties over a function that gets all the census tract level data for the county. Once we have these object, the next step will be to figure out how to classify the data so it can make nice visuals!!!
@@ -289,32 +310,161 @@ Will spend this weekend doing literature review to be able to supplement the obs
 
 
 ```{r}
+#=============================
+#Create function that creates a dictionary that has the state county combination to ask for the tract level data
+#===============================
 
-#Isolate State and COunty for Group By Analysis
-USA0922_df <- USA0922 %>%
-  separate(
-  median_age,
-  NAME,
-  into = c("county", "state"),
-  sep = ", "
-  )
+split_county_state <- function(name) {
+  # Split the string on the comma to separate county and state
+  parts <- str_split(name, pattern = ",", n = 2, simplify = TRUE)
+  county <- trimws(parts[1])
+  state <- trimws(parts[2])
 
+  return(list(county = county, state = state))
+}
 
-sf.ACS0922 <- sf.ACS0922 %>%
-  separate(
-  median_age,
-  NAME,
-  into = c("county", "state"),
-  sep = ", "
-  )
+clean_county_name <- function(county_name) {
+  # Remove 'County' from the end of the string and any leading/trailing spaces
+  cleaned_name <- sub("County$", "", county_name)
+  cleaned_name <- trimws(cleaned_name)
+  return(cleaned_name)
+}
 
 #to visualize per state grouping, do I need to use tigris to get the geometries for each state then merge it with a group by state function?
 ```
+
+
+```{r}
+
+change_fbcuban0922_split <- change_fbcuban0922 %>%
+  mutate(
+    split_data = map(NAME.x, split_county_state),
+    County = map_chr(split_data, "county"),
+    State = map_chr(split_data, "state")
+  ) %>%
+  select(-split_data)%>%
+  mutate(cleaned_County = sapply(County, clean_county_name))# Remove the list column after extracting components
+
+```
+
+
+```{r}
+iterate_county22 <- function(df) {
+  # List to store the results
+  results_list <- list()
+
+  # Loop over each row of the dataframe
+  for (i in 1:nrow(df)) {
+    # Extract county and state from the current row
+    County <- df$cleaned_County[i]
+    State <- df$State[i]
+    
+    # Try to fetch ACS data, handling errors
+    acs_data <- tryCatch({
+      get_acs(
+        geography = "tract",  # Make sure geography is correctly specified
+        variables = "B05006_143E",  # Example variable: Total Population
+        state = State,
+        county = County,
+        year = 2022,
+        survey = "acs5",
+        geometry = TRUE
+      )
+    }, error = function(e) {
+      message("Failed for ", County, ", ", State, ": ", e$message)
+      NULL  # Return NULL on failure
+    })
+    
+    # Append the fetched data to the list, if not NULL
+    if (!is.null(acs_data)) {
+      results_list[[length(results_list) + 1]] <- acs_data
+    }
+  }
+
+  # Combine all the results into one data frame
+  final_data <- bind_rows(results_list)
+  return(final_data)
+}
+
+iterate_county09 <- function(df) {
+  # List to store the results
+  results_list <- list()
+
+  # Loop over each row of the dataframe
+  for (i in 1:nrow(df)) {
+    # Extract county and state from the current row
+    County <- df$cleaned_County[i]
+    State <- df$State[i]
+    
+    # Try to fetch ACS data, handling errors
+    acs_data <- tryCatch({
+      get_acs(
+        geography = "tract",  # Make sure geography is correctly specified
+        variables = "B05006_127E",  # Example variable: Total Population
+        state = State,
+        county = County,
+        year = 2009,
+        survey = "acs5",
+        geometry = TRUE
+      )
+    }, error = function(e) {
+      message("Failed for ", County, ", ", State, ": ", e$message)
+      NULL  # Return NULL on failure
+    })
+    
+    # Append the fetched data to the list, if not NULL
+    if (!is.null(acs_data)) {
+      results_list[[length(results_list) + 1]] <- acs_data
+    }
+  }
+
+  # Combine all the results into one data frame
+  final_data <- bind_rows(results_list)
+  return(final_data)
+}
+
+```
+
+```{r}
+
+final_acs09_data <- iterate_county09(change_fbcuban0922_split)
+final_acs22_data <- iterate_county22(change_fbcuban0922_split)
+```
+
+```{r}
+
+#wrangle the data a bit to get the change over time at the census tract level
+final_acs09_data<-final_acs09_data %>%
+                  rename(cub_fb_total09 = estimate)
+
+final_acs22_data<- final_acs22_data %>%
+                  rename(tot_fb_cuba22 = estimate)
+
+final_viz_change <- st_drop_geometry(final_acs09_data) %>%
+  select(GEOID, cub_fb_total09) %>%  # Select only the columns needed for computing change
+  left_join(final_acs22_data, by = "GEOID") %>%
+  mutate(change_cuba_fb = tot_fb_cuba22 - cub_fb_total09)
+
+#dropNA values in change
+final_viz_change_droppedNA <- final_viz_change[!is.na(final_viz_change$change_cuba_fb), ]
+
+
+#remove florida from the object to see it better 
+
+
+```
+
+
+```
+
+
+```{r}
+
+```
+
+
 The goals for the next chunks of code:
 
-We want to pull all of the MSA (metropolitan areas) into one object.
-
--We want to also arrange the counties with the highest negative and positive percent changes (top 25) so that we can create a vector of just those county  and state names, essentially, we want those GEOIDs (state county combo) as a vector i believe, or something that lets us ask of get acs that specific county state combo (perhao)
 --make sure to reindex when the arrangement takes place so you can do a filter by first 25 positions.
 ----the purpose would be to do a get acs call for the census tract level data on fb cuban population, and change over time.
 -----we also want to be able to ask of a query: if an MSA boundary is within any of these counties, create an object that contains only those MSAs
