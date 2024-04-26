@@ -6,14 +6,6 @@ output: html_document
 ---
 
 
-
-```{r} 
-
-
-```
-
-
-
 ```{r install packages}
 install.packages('tidyverse')
 install.packages('tidycensus')
@@ -120,8 +112,7 @@ The call above generates data and geometries for metro and micro statistical Are
 
 ```{r}
 USA_allcba <- USA_allcba %>%
-         rename(
-         tot_below100pov22 = B06012PR_002E,
+         rename(total_below_pov=B06012PR_002E,
          tot_vacant22 = B25002_003E,
          med_inc22 = B21004_001E,
          up65_alone22 = B09021_023E,
@@ -425,7 +416,7 @@ iterate_county09 <- function(df) {
 
 ```
 
-```{r}
+```{r , results='hide'}
 
 final_acs09_data <- iterate_county09(change_fbcuban0922_split)
 final_acs22_data <- iterate_county22(change_fbcuban0922_split)
@@ -448,12 +439,47 @@ final_viz_change <- st_drop_geometry(final_acs09_data) %>%
 #dropNA values in change
 final_viz_change_droppedNA <- final_viz_change[!is.na(final_viz_change$change_cuba_fb), ]
 
+final_viz_change_droppedNA<- final_viz_change_droppedNA%>%
+                             st_as_sf(sf_column_name='geometry')
+```
 
-#remove florida from the object to see it better 
+
+```{r}
+#we are going to intercect all metro and micro areas with the selected counties object 'change_fbcuban0922'
+
+metro_micro_boundaries_final <-USA_allcba%>%
+                     st_as_sf(sf_column_name='geometry')%>%
+                     st_intersection(change_fbcuban0922)
+
+
 
 
 ```
+```{r}
+# Install (if necessary) and load the tmap package
+if (!requireNamespace("tmap", quietly = TRUE)) {
+    install.packages("tmap")
+}
+library(tmap)
 
+tmap_options(check.and.fix = TRUE)
+
+# Set tmap mode to interactive viewing
+tmap_mode("view")
+
+# Create the map
+tm <- 
+      tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
+      tm_polygons("change_cuba_fb", title = "Change in Count of Foreign Born Cubans", 
+                  palette = "-RdYlBu",  # Color palette
+                  style = "quantile",  # Classification style
+                  border.col = "white",  # Border color for polygons in 'final'
+                  border.alpha = 0.5)  # Border transparency
+
+# Print the map
+tm
+
+#tm_tip(c("change_cuba_fb", "other_attribute1", "other_attribute2"), labels = c("Change FB:", "Attribute 1:", "Attribute 2:"))  # Tooltips showing attributes
 
 ```
 
