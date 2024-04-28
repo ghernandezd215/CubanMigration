@@ -4,6 +4,19 @@ author: "Gabriel Hernandez"
 date: "2024-03-21"
 output: html_document
 ---
+```{r}
+#
+ #knitr::opts_chunk$set(
+ # comment = "#>", echo = FALSE, fig.width = 6
+#)
+
+
+#figure settings 
+fig_small <- FALSE  # Change to TRUE for smaller figures, FALSE for larger
+width_small <- 4    # Width in inches for small figures
+width_large <- 8    # Width in inches for large figures
+```
+
 
 
 ```{r install packages}
@@ -126,6 +139,8 @@ USA_allcba <- USA_allcba %>%
   st_as_sf(crs = crs)
 
 view(USA_allcba)
+
+
 
 
 ```
@@ -280,7 +295,8 @@ USA0922_df_filtered_increase <- USA0922_df %>%
   
 #Combine the two dfs because it is the object that will be used to create the dictionary for the get acs call
 
-change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_increase)
+change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_increase)%>%
+  st_as_sf(crs = crs)
 
 var_list_final<- unique(change_fbcuban0922)
 
@@ -447,12 +463,15 @@ final_viz_change_droppedNA<- final_viz_change_droppedNA%>%
 ```{r}
 #we are going to intercect all metro and micro areas with the selected counties object 'change_fbcuban0922'
 
+
 metro_micro_boundaries_final <-USA_allcba%>%
-                     st_as_sf(sf_column_name='geometry')%>%
+                     
+                     st_as_sf()%>%
+                     st_transform(st_crs(change_fbcuban0922))
                      st_intersection(change_fbcuban0922)
 
 
-
+#sf_column_name='geometry'
 
 ```
 ```{r}
