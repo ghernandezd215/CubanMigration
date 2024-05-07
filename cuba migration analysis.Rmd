@@ -19,25 +19,15 @@ width_large <- 8    # Width in inches for large figures
 
 
 
-```{r install packages}
-install.packages('tidyverse')
-install.packages('tidycensus')
-install.packages('sf')
-install.packages('stringr')
-install.packages('tigris')
-install.packages('patchwork')
-install.packages('kableExtra')
-install.packages('ggforce') #built above ggplot 2
-install.packages('osmdata')
-install.packages("mapview")
-install.packages("flexdashboard") #make dashboards
-#install.packages("scales") #ggplot 2 scales and legend grammar
-install.packages("shiny")
+```{r install packages, echo=FALSE, message=FALSE, warning=FALSE}
+
 library(tidyverse)
+library(classInt)
 library(patchwork)
 library(mapview)
 library(tidycensus)
 library(sf)
+library(dplyr)
 library(kableExtra)
 library(osmdata)
 library(ggforce)
@@ -46,6 +36,14 @@ library(flexdashboard)
 #library(scales)
 library(shiny)
 library(stringr)
+library(Hmisc)
+library(DAAG)
+library(car)  #to calculate VIF
+library(MASS)
+library(rsq)
+library(tidyverse)
+library(caret)
+library(dplyr)
 
 
 options(scipen=999)
@@ -61,14 +59,16 @@ crs='EPSG:3857'
 
 
 ```
-```{r}
+# Introduction
 
 
+#Data Wrangling
 
-```
+In order to perform the exploratory analysis I will use tidycensus to get data and its associated geometries. I will be operating on three scales: core-based areas, counties, and census tracts. It is important at this point to note that the the Census defines 'foreign-born' populations as 'anyone who is not a U.S. citizen at birth, including those who become U.S. citizens through naturalization.' The subtopics discuss the different scales used in the analysis.
 
+Below are lists of variables for 2009 and 2022 ACS 5-Year Estimates. The codes differ between years so they were created from carefully reading load_variable() outputs and filtering on R Studios interacive view() output. 
 
-```{r pressure, echo=FALSE}
+```{r ACS LOAD VARIABLES, echo=FALSE}
 # vars for 2009 and 2022 for change over time comparison
 
 acs_variable_list.2009 <- load_variables(2009, #year
@@ -106,10 +106,13 @@ acs22_vars <-c("B06012PR_002E", #Tot Below 100 percent of the poverty level
 
 
 ```
+## Core-Based Statistical Areas: ACS 5-Year Estimates 2022
 
-In order to perform the analysis I will have to use tidycensus and tigris to get not only dataframes but geometries associated with the counties, cities, and census tracts that I will be using in my final visualizzation. The first calls are to get the data we need on foreign-born cubans at the county level in order to identify, outside of florida, what are the counties with the current highest concentration of foreign-born Cubans. I will also use tigris to get an sf object of "places" in the united states. The goal is to identify counties of interest and create an sf object from intersecting those counties and the places object of all cities in the United states.
+A metropolitan or micropolitan statistical area contains a core area with a substantial population nucleus, as well as adjacent communities having a high degree of economic and social integration with that core. Core Based Statistical Area (CBSA) term became effective in 2000 and refers collectively to metropolitan and micropolitan statistical areas.Each metropolitan statistical area must have one urbanized area of 50,000 or more inhabitants. Each micropolitan statistical area must have one urban cluster of 10,000 to 49,999 inhabitants
 
-Furthermore, at the end of the county-level analysis, a call will be made to tigris to get the census tracts for the counties of interest in order to join them to the dataframe with the change-over-time values. THis will be for the main visualization: an interactive map that displays first the location of counties of interest and then upon zooming in, the boundaries of the places that they are in and the census tract level data displaying where in the counties the cuban communities are relative to the city boundaries. (relate this to theory about settlement patterns of immigrants). 
+The first call is to get the core-based statistical areas across the United States using ACS 5- Year Estimates for 2022, to observe the count of foreign-born Cubans in each area as well as other variables that I was interested in. 
+
+I then filter the data frame that it creates in different ways to create subsets that provide context to the existing presence of Cuban migrants. First, I isolate metro and micro statistical areas, as they are both returned in the call. I use filter() on metro areas to get those that have 1000+ foreign born cubans, and 100+ for micro areas. Lastly, because the majority of the Cuban migration is related to Florida, I further filtered the USA_metro and USA_micro objects to those that are in Florida and outside of it. I believe this will provide more unknown context to the general story of Cuban Migration. 
 
 ```{r}
 
@@ -120,10 +123,8 @@ USA_allcba <- get_acs(geography = "metropolitan statistical area/micropolitan st
                              variables = acs22_vars, 
                              geometry = TRUE, 
                              output = "wide") 
-```
-The call above generates data and geometries for metro and micro statistical Areas in the United States. Below we wrangle the data to see where the highest concentrations of Cubans int he US are. 
 
-```{r}
+#Rename the variables for the 2022 data
 USA_allcba <- USA_allcba %>%
          rename(total_below_pov=B06012PR_002E,
          tot_vacant22 = B25002_003E,
@@ -138,17 +139,7 @@ USA_allcba <- USA_allcba %>%
   mutate(vacpct22 = (tot_vacant22/tot_housingunits22)) %>%
   st_as_sf(crs = crs)
 
-view(USA_allcba)
-
-
-
-
-```
-The chunk below will isolate micro and metro areas in the cba dataset to be able to arrange them in a way that we can create a table with the top concentrations of foreign-born cubans in both micro and metro areas. 
-
-```{r}
-
-# Assuming your dataframe is named df and the column of interest is 'Name'
+#Begin filtering
 USA_micros <- USA_allcba %>%
               filter(grepl("Micro", NAME, ignore.case = TRUE)) %>%
               select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
@@ -161,19 +152,7 @@ USA_metros <- USA_allcba %>%
               filter(tot_fb_cuba22 >= 1000)%>%
               arrange(desc(tot_fb_cuba22))
 
-view(USA_metros)
-view(USA_micros)
-
-```
-
-We all know that there is a long-standing pattern of settling in Florida for the Cuban diasporic community. The chunk below removes areas in Florida in both the Metro and Micro places in order to visualize settlements outside of the geographies that we expect to see cubans .i.e Florida.
-We provide the results as tables of micro and metro areas. We will also make a table of just Florida places to analyze that story deeper. 
-
-Furthermore we observe correlation plots between the count of cubans and the average year of structures, gross rent to income percentage, and the total number of housing units and vacancy rates. 
-
-
-```{r}
-
+#create final objects for kable tables
 noFL_micros <- USA_micros %>%
               filter(!grepl("FL M", NAME, ignore.case = TRUE)) 
             
@@ -189,27 +168,12 @@ fl_metros <-USA_metros %>%
             filter(grepl("FL M" , NAME, ignore.case= TRUE))
             
 
-view(noFL_metros)
-view(noFL_micros)
-view(fl_micros)
-view(fl_metros)
 ```
+## County Data and Calculating Change over Time
 
-```{r}
-#use this chunk to introduce correlation plots between count of fb cubans and the other variables
-# also show a plot of vacancies to gross rent inc
-#show total number of units to gross rent income
-#do this for both micro and metro, for both fl and non florida
-#If we were to tell cubans where to move to based on 2002 gross rent to income, vacancy rates, and total housing units available, and incomes?
-# a correlation matrix with values in the squares would be best generated rather than multiple plots. we can facet them to compare correlations 
-```
+to get the data we need on foreign-born cubans at the county level in order to identify, outside of florida, what are the counties with the current highest concentration of foreign-born Cubans. I will also use tigris to get an sf object of "places" in the united states. The goal is to identify counties of interest and create an sf object from intersecting those counties and the places object of all cities in the United states.
 
-The analysis below is to take the first steps to generate the final interactive visualization, which will show the census tract level value of foreign born cubans over time. It will also generate the change over time county map that shows where there have been increases and decreases of cubans.
-
-The goal is to get the change over time as a percentage and then tie it to counties. We have to ask tigris to get those geometries, create an object with them, and then merge it to the final change over time dataset created below. That will yield an important visualization of the project.
-
-
-
+Furthermore, at the end of the county-level analysis, a call will be made to tigris to get the census tracts for the counties of interest in order to join them to the dataframe with the change-over-time values. THis will be for the main visualization: an interactive map that displays first the location of counties of interest and then upon zooming in, the boundaries of the places that they are in and the census tract level data displaying where in the counties the cuban communities are relative to the city boundaries. (relate this to theory about settlement patterns of immigrants). 
 ```{r}
 
 USA_2009 <- get_acs(geography = "county",
@@ -257,13 +221,6 @@ USA_2022 <- USA_2022 %>%
   mutate(vacpct22 = (tot_vacant22/tot_housingunits22)) %>%
   st_as_sf(crs = crs)
 
- 
-
-
-```
-
-```{r}
-
 #Merge the dataframes
 
 USA0922_df <- st_drop_geometry(USA_2022,USA_2009)%>%
@@ -271,36 +228,27 @@ USA0922_df <- st_drop_geometry(USA_2022,USA_2009)%>%
          mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
            change_med_inc = med_inc22 - med_hh_inc.09,
            change_med_values = med_values22 - med_houseval09,
+           change_count_housingunits= tot_housingunits22-tot_housingunits.09,
            change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
            change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
-#===========================================================
-#This does not work, returns multiples of the same county
-#===========================================================
-#sf.ACS0922 <-st_join(USA_2009,USA_2022)%>%
-   # mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
-   #      change_med_inc = med_inc22 - med_hh_inc.09,
-    #     change_med_values = med_values22 - med_houseval09,
-    #     change_cuba_fb = tot_fb_cuba22 - cub_fb_total09, 
-    #      change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
 
+#Begin Filtering Process
 
-#Filter to get the largest and lowest decreases. using 500 is an arbitrary number. With more feedback and domain knowledge I could choose another
+##decrease
 USA0922_df_filtered_decrease <- USA0922_df %>%
               filter(change_cuba_fb < -500)%>%
-              select(NAME.x, GEOID, geometry,med_inc22,up65_alone22, tot_housingunits22, gross_v_inc_perc22,                                 tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct)
+              select(NAME.x, GEOID, geometry,cub_fb_total09, med_inc22,up65_alone22, tot_housingunits22,   gross_v_inc_perc22, change_count_housingunits, tot_pa_inc22,med_values22, vacpct22, change_med_values,change_cuba_fb, change_med_inc,                         change_vac_pct)
 
+##increase
 USA0922_df_filtered_increase <- USA0922_df %>% 
        filter(change_cuba_fb > 500) %>%
-       select(NAME.x, GEOID, geometry, med_inc22,up65_alone22, tot_housingunits22, gross_v_inc_perc22,                                 tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct)
+       select(NAME.x, GEOID, geometry, med_inc22,up65_alone22,cub_fb_total09, tot_housingunits22, gross_v_inc_perc22,   change_count_housingunits,                              tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct,change_cuba_fb)
   
-#Combine the two dfs because it is the object that will be used to create the dictionary for the get acs call
+#Combine the two dfs to create the filtered all counties object for the census tract level pull
 
 change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_increase)%>%
   st_as_sf(crs = crs)
 
-var_list_final<- unique(change_fbcuban0922)
-
-#use this ^^^^^ to create model for analysis
 
 
 
@@ -432,7 +380,7 @@ iterate_county09 <- function(df) {
 
 ```
 
-```{r , results='hide'}
+```{r , results='hide', message=FALSE, warning= FALSE}
 
 final_acs09_data <- iterate_county09(change_fbcuban0922_split)
 final_acs22_data <- iterate_county22(change_fbcuban0922_split)
@@ -486,14 +434,22 @@ tmap_options(check.and.fix = TRUE)
 # Set tmap mode to interactive viewing
 tmap_mode("view")
 
+
+# Calculate natural breaks for the 'pop_est' variable
+#num_categories = 5  # Define the number of categories or breaks you want
+#breaks_natural = classIntervals(final_viz_change_droppedNA$change_cuba_fb, n = num_categories, style = "jenks")$brks
+
+
+
 # Create the map
-tm <- 
-      tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
-      tm_polygons("change_cuba_fb", title = "Change in Count of Foreign Born Cubans", 
-                  palette = "-RdYlBu",  # Color palette
-                  style = "quantile",  # Classification style
-                  border.col = "white",  # Border color for polygons in 'final'
-                  border.alpha = 0.5)  # Border transparency
+tm <- tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
+      tm_polygons("change_cuba_fb", breaks = c(-1015, -500,0, 500, 1847), title = "Change in Count of Foreign Born Cubans", 
+                  palette = "-RdYlBu",  # Color palette  
+                  border.col = "black",  # Border color for polygons in 'final'
+                  border.alpha = 0.3)+# Border transparency
+      tm_basemap("Esri.WorldStreetMap")
+    
+
 
 # Print the map
 tm
@@ -501,54 +457,3 @@ tm
 #tm_tip(c("change_cuba_fb", "other_attribute1", "other_attribute2"), labels = c("Change FB:", "Attribute 1:", "Attribute 2:"))  # Tooltips showing attributes
 
 ```
-
-
-```{r}
-
-```
-
-
-The goals for the next chunks of code:
-
---make sure to reindex when the arrangement takes place so you can do a filter by first 25 positions.
-----the purpose would be to do a get acs call for the census tract level data on fb cuban population, and change over time.
------we also want to be able to ask of a query: if an MSA boundary is within any of these counties, create an object that contains only those MSAs
------------------the purpose would be for the final interactive t map which will include the census tract visualizations for the top 25 counties (negative and positive flows combined) and the borders of the MSAs to visualize if the community exists inside or outside of a metropolitan area. 
-
--I think the county stuff does not need to be visualized independently. Instead we will create a table that displays the county name, state, change over time of cuban population and the quantity of the population
-
--We need to fix the line graph, make it prettier
--we need the bar plot to also look better for the net migration
--the encounters table is solid, maybe just make it prettier. 
-
-
-Notes
--- (purr) map_dfr() iterates over an input and applies it to a function or process defined by the user, then row-binds the result into a single data frame.
-----use map_dfr after creating a names(vector) in which the vecto=whatever identifies the counties that we are interested in (can it be geoid) and use this as the model:
-------------------
-years <- 2010:2019
-names(years) <- years
-
-college_by_year <- map_dfr(years, ~{
-  get_acs(
-    geography = "county",
-    variables = college_vars,
-    state = "CO",
-    summary_var = "B15002_001",
-    survey = "acs1",
-    year = .x
-  )
-}, .id = "year")
-
-The .id argument, which is optional but used here, creates a new column in the output data frame that contains values equivalent to the names of the input object, which in this case is years. By setting .id = "year", we tell map_dfr() to name the new column that will contain these values year.
-------------------
----The geography we need:  "metropolitan statistical area/micropolitan statistical area" to just make that tmap then clip off the geographies of the selected counties
--------A metropolitan or micropolitan statistical area contains a core area with a substantial population nucleus,
-as well as adjacent communities having a high degree of economic and social integration with that core.
-Core Based Statistical Area (CBSA) term became effective in 2000 and refers collectively to metropolitan
-and micropolitan statistical areas
--------Each metropolitan statistical area must have one urbanized area of 50,000 or more inhabitants. Each
-micropolitan statistical area must have one urban cluster of 10,000 to 49,999 inhabitants
-
-----core_based_statistical_areas()
-
