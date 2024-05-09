@@ -6,9 +6,9 @@ output: html_document
 ---
 ```{r}
 #
- #knitr::opts_chunk$set(
- # comment = "#>", echo = FALSE, fig.width = 6
+knitr::opts_chunk$set(comment = "#>", echo = TRUE, fig.width = 6, message = FALSE, results='hide', warnings= FALSE)
 #)
+
 
 
 #figure settings 
@@ -27,6 +27,8 @@ library(patchwork)
 library(mapview)
 library(tidycensus)
 library(sf)
+library(kableExtra)
+library(knitr)
 library(dplyr)
 library(kableExtra)
 library(osmdata)
@@ -61,12 +63,23 @@ crs='EPSG:3857'
 ```
 # Introduction
 
+In the past few years 5% of Cuba's 11 million person population was encountered at the U.S. border. Once processed, they begin a process towards becoming permanent residents and they settle in different parts of the United States with permission to work. The purpose of this report is to explore the distribution of the foreign-born Cuban population in the United States. The intention of the following analysis and the resulting interactive map is to provide context and support for the topic of Cuban Migration.
+
+On the other hand, the literature review that I performed led me to consider the importance of remittances to the Cuban economy and their results the in built environment. From personal experience, many Cubans work to send money back home to their families: in small ways like purchasing minutes and data for a phone line, and in big ways like fronting money for renovation materials, installing a new water tank systems, or purchasing a new home altogether. 
+
+I believe that taking stock of the most granular level available through Census data will give interested parties insight into the field of remittance landscapes of Cuba and migratory urbanism. 
+
+If we can accept that places can function as sorting mechanisms for the settlement of peoples, then we can assume that migrants will settle where their network leads them. I take a look at the places where Cubans settle based on and compare metrics such as the total count of housing units, or the gross rent to income ratio. Based on my experience living in America, one's tolerance for how much of your income is used on the rent of land determines the standard of life that you are able to have. Putting myself in my mother's shoes. If I had come to the United States, where could I live and keep more of my income relative to the rent I pay and have housing options. Where could I potentially access my community and have more money to remit?
+
+From a business perspective, the resulting tables and plots offer first steps towards geomarketing campaigns intented to connect to the U.S.-based Cuban community. If someone has a business that, for instance, provides remittance services, it can get its message to the right places more efficiently.  
+
+Lastly, knowing where there have been changes in the population of foreign-born Cubans in the U.S.is useful information for organizations advocate for the Cuban-American vote.
 
 #Data Wrangling
 
 In order to perform the exploratory analysis I will use tidycensus to get data and its associated geometries. I will be operating on three scales: core-based areas, counties, and census tracts. It is important at this point to note that the the Census defines 'foreign-born' populations as 'anyone who is not a U.S. citizen at birth, including those who become U.S. citizens through naturalization.' The subtopics discuss the different scales used in the analysis.
 
-Below are lists of variables for 2009 and 2022 ACS 5-Year Estimates. The codes differ between years so they were created from carefully reading load_variable() outputs and filtering on R Studios interacive view() output. 
+I compiled a list of variables for 2009 and 2022 ACS 5-Year Estimates. The codes differ between years so they were created from carefully reading load_variable() and filtering the outputs on R Studios interactive view(). 
 
 ```{r ACS LOAD VARIABLES, echo=FALSE}
 # vars for 2009 and 2022 for change over time comparison
@@ -114,7 +127,7 @@ The first call is to get the core-based statistical areas across the United Stat
 
 I then filter the data frame that it creates in different ways to create subsets that provide context to the existing presence of Cuban migrants. First, I isolate metro and micro statistical areas, as they are both returned in the call. I use filter() on metro areas to get those that have 1000+ foreign born cubans, and 100+ for micro areas. Lastly, because the majority of the Cuban migration is related to Florida, I further filtered the USA_metro and USA_micro objects to those that are in Florida and outside of it. I believe this will provide more unknown context to the general story of Cuban Migration. 
 
-```{r}
+```{r CBA OBJECTS , echo=TRUE}
 
 #get variables in core_based_statistical areas across USA
 
@@ -142,13 +155,13 @@ USA_allcba <- USA_allcba %>%
 #Begin filtering
 USA_micros <- USA_allcba %>%
               filter(grepl("Micro", NAME, ignore.case = TRUE)) %>%
-              select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
+              dplyr:: select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
               filter(tot_fb_cuba22 >= 100)%>%
               arrange(desc(tot_fb_cuba22))
 
 USA_metros <- USA_allcba %>%
-              filter(grepl("Metro", NAME, ignore.case=TRUE)) %>%
-              select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
+             dplyr:: filter(grepl("Metro", NAME, ignore.case=TRUE)) %>%
+             dplyr:: select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
               filter(tot_fb_cuba22 >= 1000)%>%
               arrange(desc(tot_fb_cuba22))
 
@@ -169,12 +182,15 @@ fl_metros <-USA_metros %>%
             
 
 ```
+
+
 ## County Data and Calculating Change over Time
 
+#####start here####
 to get the data we need on foreign-born cubans at the county level in order to identify, outside of florida, what are the counties with the current highest concentration of foreign-born Cubans. I will also use tigris to get an sf object of "places" in the united states. The goal is to identify counties of interest and create an sf object from intersecting those counties and the places object of all cities in the United states.
 
 Furthermore, at the end of the county-level analysis, a call will be made to tigris to get the census tracts for the counties of interest in order to join them to the dataframe with the change-over-time values. THis will be for the main visualization: an interactive map that displays first the location of counties of interest and then upon zooming in, the boundaries of the places that they are in and the census tract level data displaying where in the counties the cuban communities are relative to the city boundaries. (relate this to theory about settlement patterns of immigrants). 
-```{r}
+```{r COUNTY OBJECTS , echo=TRUE, warning=FALSE}
 
 USA_2009 <- get_acs(geography = "county",
                              year = 2009, 
@@ -232,19 +248,19 @@ USA0922_df <- st_drop_geometry(USA_2022,USA_2009)%>%
            change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
            change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
 
-#Begin Filtering Process
+#Begin Filtering Process of COUNTIES THAT MEET DOUBLE CRITERIA
 
 ##decrease
 USA0922_df_filtered_decrease <- USA0922_df %>%
-              filter(change_cuba_fb < -500)%>%
-              select(NAME.x, GEOID, geometry,cub_fb_total09, med_inc22,up65_alone22, tot_housingunits22,   gross_v_inc_perc22, change_count_housingunits, tot_pa_inc22,med_values22, vacpct22, change_med_values,change_cuba_fb, change_med_inc,                         change_vac_pct)
+              dplyr:: filter(change_cuba_fb < -500)%>%
+              dplyr:: select(NAME.x, GEOID, geometry,cub_fb_total09, med_inc22,up65_alone22, tot_housingunits22,   gross_v_inc_perc22, change_count_housingunits, tot_pa_inc22,med_values22, vacpct22, change_med_values,change_cuba_fb, change_med_inc,                         change_vac_pct)
 
 ##increase
 USA0922_df_filtered_increase <- USA0922_df %>% 
-       filter(change_cuba_fb > 500) %>%
-       select(NAME.x, GEOID, geometry, med_inc22,up65_alone22,cub_fb_total09, tot_housingunits22, gross_v_inc_perc22,   change_count_housingunits,                              tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct,change_cuba_fb)
+     dplyr::  filter(change_cuba_fb > 500) %>%
+     dplyr::  select(NAME.x, GEOID, geometry, med_inc22,up65_alone22,cub_fb_total09, tot_housingunits22, gross_v_inc_perc22,   change_count_housingunits,                              tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct,change_cuba_fb)
   
-#Combine the two dfs to create the filtered all counties object for the census tract level pull
+#Combine the two dfs to create the filtered all counties object that will be used for the census tract level selected counties pull
 
 change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_increase)%>%
   st_as_sf(crs = crs)
@@ -252,22 +268,23 @@ change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_inc
 
 
 
-
 ```
 
+## Functions to Process the Selected Counties as inputs for their Census Tract Level Data
+
+Upon analyzing the counties I chose using plus/minus 500 foreign born cubans as the cutoff for both decreasing and increasing changes in foreign born Cuban counts. I created an sf object of counties that between 2009-2022 had either lost or absorbed 500 foreign-born Cubans. I then used this as the input for an iterative call to get their census tract level data. 
+
+It is at this level that I desired to create the interactive map below. 
 
 
-Upon analyzing the counties, choose filters to get the most increasing and decreasing populations. Get the ID of each of these counties in a way so we can intersect the USA_allcba object to get the geometries of only the metro and micro areas that are within the chosen counties.
+It shows the census tract level data for the filtered counties. For additional context, I wanted to add another layer and see the presence of Cubans relative to the boundaries and centers of metropolitan/micropolitan areas. 
 
-We also have to iterate those counties over a function that gets all the census tract level data for the county. Once we have these object, the next step will be to figure out how to classify the data so it can make nice visuals!!!
+### Processing Name Column to create columns with the County and State Arguments 
 
-Will spend this weekend doing literature review to be able to supplement the observations. 
+The chunk below shows the two main things neccesary to transform the 'Name' column in county-level get_acs() output  to iterate those counties back into a new call for their respective census-tract data. 
 
 
-```{r}
-#=============================
-#Create function that creates a dictionary that has the state county combination to ask for the tract level data
-#===============================
+```{r COUNTY TO TRACT , echo=TRUE}
 
 split_county_state <- function(name) {
   # Split the string on the comma to separate county and state
@@ -285,11 +302,9 @@ clean_county_name <- function(county_name) {
   return(cleaned_name)
 }
 
-#to visualize per state grouping, do I need to use tigris to get the geometries for each state then merge it with a group by state function?
-```
 
 
-```{r}
+#apply the function to get the split vectors of 'county' and 'state' arguments for the 
 
 change_fbcuban0922_split <- change_fbcuban0922 %>%
   mutate(
@@ -297,13 +312,16 @@ change_fbcuban0922_split <- change_fbcuban0922 %>%
     County = map_chr(split_data, "county"),
     State = map_chr(split_data, "state")
   ) %>%
-  select(-split_data)%>%
+ dplyr::  select(-split_data)%>%
   mutate(cleaned_County = sapply(County, clean_county_name))# Remove the list column after extracting components
 
 ```
+### Function Takes New Columns, Performs API Call, Combines Each output Into One Object
 
+The following chunk of code creates the iterative functions that will take a 'county' and 'state' column and run a get_acs() tidy census call for both 2009 and 2022. The variables are different each year so they have to be done separately. 
 
-```{r}
+```{r ITERATE GETACS FUNCTION, echo=TRUE}
+
 iterate_county22 <- function(df) {
   # List to store the results
   results_list <- list()
@@ -379,16 +397,15 @@ iterate_county09 <- function(df) {
 }
 
 ```
-
-```{r , results='hide', message=FALSE, warning= FALSE}
+### Applying the Function Create 2009 and 2022 Objects
+```{r , results='hide', echo=TRUE, message=FALSE, warning= FALSE}
 
 final_acs09_data <- iterate_county09(change_fbcuban0922_split)
 final_acs22_data <- iterate_county22(change_fbcuban0922_split)
 ```
+### Transforming Tract Data and Calculating The Change In Foreign Born Cubans
+```{r Transforming Cen}
 
-```{r}
-
-#wrangle the data a bit to get the change over time at the census tract level
 final_acs09_data<-final_acs09_data %>%
                   rename(cub_fb_total09 = estimate)
 
@@ -396,17 +413,21 @@ final_acs22_data<- final_acs22_data %>%
                   rename(tot_fb_cuba22 = estimate)
 
 final_viz_change <- st_drop_geometry(final_acs09_data) %>%
-  select(GEOID, cub_fb_total09) %>%  # Select only the columns needed for computing change
+ dplyr::  select(GEOID, cub_fb_total09) %>%  # Select only the columns needed for computing change
   left_join(final_acs22_data, by = "GEOID") %>%
   mutate(change_cuba_fb = tot_fb_cuba22 - cub_fb_total09)
 
-#dropNA values in change
+#dropNA values in change, won't visualize.
 final_viz_change_droppedNA <- final_viz_change[!is.na(final_viz_change$change_cuba_fb), ]
 
+
+#Add Geometry back
 final_viz_change_droppedNA<- final_viz_change_droppedNA%>%
                              st_as_sf(sf_column_name='geometry')
 ```
+### Intersect All-USA Core-Based Areas SF Object To Get Boundaries
 
+The chunk below intersects the selected counties object, the same one used to perform the census-tract level object, with the US-wide metropolitan and micropolitan boundaries object introduced at the beginning of the analysis. Again, this is done to show the boundaries on the interactive map for more context. 
 
 ```{r}
 #we are going to intercect all metro and micro areas with the selected counties object 'change_fbcuban0922'
@@ -419,9 +440,19 @@ metro_micro_boundaries_final <-USA_allcba%>%
                      st_intersection(change_fbcuban0922)
 
 
-#sf_column_name='geometry'
-
 ```
+## Data Analysis
+
+### 
+
+
+
+#Results
+
+## Census Tract Level Interactive Map
+
+**add the boundaries layer to this
+
 ```{r}
 # Install (if necessary) and load the tmap package
 if (!requireNamespace("tmap", quietly = TRUE)) {
@@ -434,26 +465,206 @@ tmap_options(check.and.fix = TRUE)
 # Set tmap mode to interactive viewing
 tmap_mode("view")
 
-
-# Calculate natural breaks for the 'pop_est' variable
-#num_categories = 5  # Define the number of categories or breaks you want
-#breaks_natural = classIntervals(final_viz_change_droppedNA$change_cuba_fb, n = num_categories, style = "jenks")$brks
-
-
-
 # Create the map
 tm <- tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
-      tm_polygons("change_cuba_fb", breaks = c(-1015, -500,0, 500, 1847), title = "Change in Count of Foreign Born Cubans", 
-                  palette = "-RdYlBu",  # Color palette  
-                  border.col = "black",  # Border color for polygons in 'final'
-                  border.alpha = 0.3)+# Border transparency
-      tm_basemap("Esri.WorldStreetMap")
-    
+     tm_polygons("change_cuba_fb", breaks = c(-1015, -500,0, 500, 1847), title = "Change in Count of Foreign Born Cubans", 
+                palette = "-RdYlBu",  # Color palette  
+                alpha=0.4,
+                border.col = "black",  # Border color for polygons in 'final'
+                border.alpha = 0.3)+ # Border transparency
+   tm_text('change_cuba_fb')+
+   tm_basemap("Esri.WorldStreetMap")
+# Adding another layer with 'metro_micro_areas'
 
+tm <- tm + tm_shape(metro_micro_boundaries_final) +
+           tm_borders(col = "red", lwd = .5, alpha = 0.3)  # Customize the boundary style
 
 # Print the map
 tm
 
-#tm_tip(c("change_cuba_fb", "other_attribute1", "other_attribute2"), labels = c("Change FB:", "Attribute 1:", "Attribute 2:"))  # Tooltips showing attributes
+
 
 ```
+## Metropolitan / Micropolitan Analysis
+
+### Summary Statistics
+
+#### Metropolitan Areas Outside of Florida
+
+Median count total housing units: 1026146
+:Average rent v income perc - 30.0`%
+MEDIAN COUNT fb cuban - 2054
+mean year structure built: 1980
+
+#### Metropolitan Areas in Florida
+
+Median count total housing units: 260981
+:Average rent v income perc - 33.08`%
+MEDIAN COUNT fb cuban - 4322
+mean year structure built: 1989
+
+#### Micropolitan Areas in Florida
+
+Median count total housing units: 18496
+:Average rent v income perc - 31.49
+MEDIAN COUNT fb cuban - 251
+mean year structure built: 1986
+
+#### Micropolitan Areas Outside of Florida
+
+Median count total housing units: 17833
+:Average rent v income perc - 25.81%
+MEDIAN COUNT fb cuban - 160
+mean year structure built: 1976
+
+###Regressions
+
+The results of the regressions below lack predictive power. When the total count of housing units shows up as a significant predictor (p-value < 0.001), it does not make a major difference in the count of foreign born Cubans. The analysis would benefit from removing outliers, and ultimately it is limited by the count of observations. 
+
+#### Outside of Florida: Metropolitan Areas Regression
+
+The total Count of Housing Units was a significant predictor until I removed the New York/Newark metropolitan area from the model's observations. Even then, it did not make significant change in the count per unit of housing increased (less than a person).
+
+Below is a scatter plot showing that the majority of metropolitan areas outside of Florida where there are cubans have less than 3 million housing units. 
+```{r , noFL_Metros Regression}
+#remove outlier (NY NJ) for better scatterplot of housing units
+
+noFL_metros<- noFL_metros%>%
+  filter(!str_detect(NAME, 'New York'))
+
+noFL_metro_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22+  med_yb22, data=noFL_metros)
+summary(noFL_metro_fit)
+
+plot(noFL_metros$tot_fb_cuba22, noFL_metros$tot_housingunits22)
+
+
+```
+
+
+#### Florida: Metropolitan Areas Regression
+
+When it comes to Florida, I removed Tampa and Miami outliers and ran the same regression. The adjusted R square was .74, suggesting a strong model with the few variables that we have. Again, the only strong predictor was housing units (p-value <0.0001) but the unit increase only altered the count of foreign born Cubans by less than a person.
+
+Below is a scatterplot of the Total count of Housing units and the total count of foreign born Cubans. 
+
+```{r , FL_Metros Regression}
+
+#filter out Miami for scatterplot
+fl_metros<- fl_metros%>%
+  filter(!str_detect(NAME, c('Miami|Tampa')))
+
+fl_metros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_metros)
+summary(fl_metros_fit)
+plot(fl_metros$tot_fb_cuba22, fl_metros$tot_housingunits22)
+
+
+```
+
+
+
+#### Outside of Florida: Micropolitan Areas 
+
+The resulting regression did not return any strong predictors. This could be due to the distribution of the data, seen below. This makes sense given that we are talking about micropolitan areas. My theory is that the decision to settle in these areas is due to factors that would require deeper investigation than one using Census data. They may be more nuanced and network-related. Interviews and oral histories would best shed light on this aspect of the Cuban migration story.
+
+```{r , noF_Micros Regression}
+
+noFl_micro_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=noFL_micros)
+hist(noFL_micros$tot_housingunits22)
+
+
+
+```
+
+
+#### Florida: Micropolitan Areas Regression
+
+There are too few observations to make any meaningful statistical inferences. However, again it would be wise to take the table of these areas and investigate deeper the roots of their cuban communities.
+
+```{r , FL_Micros Regression}
+
+Florida_micros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_micros)
+summary(Florida_micros_fit)
+hist(fl_micros$tot_housingunits22)
+
+
+```
+### Tables
+
+The following tables show the markets that remained when I applied previously described filters to the metro/micropolitan areas of the United States. I have sorted them firstly using the the highest count of Cubans, then the lowest Gross Rent to Income Ratio, and lastly the highest count of housing units.
+
+#### Florida Metropolitan Core-Based Areas
+
+```{r , kable table 1}
+
+# Sorting the data
+fl_metros_sorted <- fl_metros %>%
+  dplyr::arrange(desc(tot_fb_cuba22), gross_v_inc_perc22, desc(tot_housingunits22 ))
+
+# Creating the table with kable and kableExtra
+fl_metro_kable <- fl_metros_sorted %>%
+  kable("html", table.attr = "style='width:100%;'") %>%
+  kable_styling(
+    full_width = FALSE, 
+    position = "lcr",
+    font_size = 12
+  ) %>%
+  column_spec(1, bold = TRUE, color = "red") %>%
+  column_spec(2, background = "#FFF2CC") %>%
+  column_spec(3, italic = TRUE)
+
+# Print the table to view in an RMarkdown output or similar
+kable_styling
+
+
+```
+
+
+
+#### Florida Micropolitian Core- Based Areas
+
+
+```{r , kable table 2}
+
+# Sorting the data
+fl_micros_sorted <- fl_micros %>%
+  dplyr::arrange(desc(tot_fb_cuba22), gross_v_inc_perc22, desc(tot_housingunits22 ))
+
+
+```
+
+
+#### Outside of Florida Metropolitan Core-Based Areas
+
+
+```{r , kable table 3}
+
+
+# Sorting the data
+noFL_metros_sorted <- noFL_metros %>%
+  dplyr::arrange(desc(tot_fb_cuba22), gross_v_inc_perc22, desc(tot_housingunits22 ))
+
+```
+
+
+#### Outside of Florida Micropolitan Core-Based Areas
+
+
+```{r , kable table 4}
+
+# Sorting the data
+noFL_micros_sorted <- noFL_micros %>%
+  dplyr::arrange(desc(tot_fb_cuba22), gross_v_inc_perc22, desc(tot_housingunits22 ))
+
+
+```
+
+
+
+
+## County-Level Plots and Correlations
+
+## Census-Tract Level Correlations
+
+#Discussion and Conclusion
+
+discuss transnational gentrification***
