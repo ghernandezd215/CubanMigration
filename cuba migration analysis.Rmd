@@ -453,18 +453,21 @@ metro_micro_boundaries_final <-USA_allcba%>%
 
 **add the boundaries layer to this
 
-```{r}
+```{r echo=TRUE}
 # Install (if necessary) and load the tmap package
 if (!requireNamespace("tmap", quietly = TRUE)) {
     install.packages("tmap")
 }
 library(tmap)
-
+library(dplyr)
+library(sf)
 tmap_options(check.and.fix = TRUE)
 
 # Set tmap mode to interactive viewing
 tmap_mode("view")
 
+final_viz_change_droppedNA<-final_viz_change_droppedNA%>%
+  st_as_sf()
 # Create the map
 tm <- tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
      tm_polygons("change_cuba_fb", breaks = c(-1015, -500,0, 500, 1847), title = "Change in Count of Foreign Born Cubans", 
@@ -476,8 +479,8 @@ tm <- tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
    tm_basemap("Esri.WorldStreetMap")
 # Adding another layer with 'metro_micro_areas'
 
-tm <- tm + tm_shape(metro_micro_boundaries_final) +
-           tm_borders(col = "red", lwd = .5, alpha = 0.3)  # Customize the boundary style
+# <- tm + tm_shape(metro_micro_boundaries_final) +
+        #   tm_borders(col = "red", lwd = .5, alpha = 0.3)  # Customize the boundary style
 
 # Print the map
 tm
@@ -598,14 +601,15 @@ The following tables show the markets that remained when I applied previously de
 
 # Sorting the data
 fl_metros_sorted <- fl_metros %>%
-  dplyr::arrange(desc(tot_fb_cuba22), gross_v_inc_perc22, desc(tot_housingunits22 ))
+  dplyr::arrange(desc(tot_fb_cuba22))
 
 # Creating the table with kable and kableExtra
+
 fl_metro_kable <- fl_metros_sorted %>%
   kable("html", table.attr = "style='width:100%;'") %>%
   kable_styling(
     full_width = FALSE, 
-    position = "lcr",
+    position = "center",
     font_size = 12
   ) %>%
   column_spec(1, bold = TRUE, color = "red") %>%
@@ -613,7 +617,7 @@ fl_metro_kable <- fl_metros_sorted %>%
   column_spec(3, italic = TRUE)
 
 # Print the table to view in an RMarkdown output or similar
-kable_styling
+fl_metro_kable
 
 
 ```
@@ -661,9 +665,15 @@ noFL_micros_sorted <- noFL_micros %>%
 
 
 
-## County-Level Plots and Correlations
+## Does the 2009 count of foreign born cubans correlate with the observed changes in the data?
+###County LEvel
+```{r r2 Migration, echo=TRUE}
 
-## Census-Tract Level Correlations
+
+
+final_viz_change_droppedNA
+
+```
 
 #Discussion and Conclusion
 
