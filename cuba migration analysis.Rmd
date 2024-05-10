@@ -399,10 +399,28 @@ iterate_county09 <- function(df) {
 ```
 ### Applying the Function Create 2009 and 2022 Objects
 ```{r , results='hide', echo=TRUE, message=FALSE, warning= FALSE}
-
+# FEEL FREE TO RUN 'read_objects_from_file' CHUNK TO SAVE TIME
 final_acs09_data <- iterate_county09(change_fbcuban0922_split)
 final_acs22_data <- iterate_county22(change_fbcuban0922_split)
 ```
+
+
+```{r export_objects, eval=F}
+#### Writing iterated counties as shapefiles (to reduce time)
+st_write(final_acs09_data,"data/final_acs09_data.shp")
+st_write(final_acs22_data,"data/final_acs22_data.shp")
+```
+
+```{r read_objects_from_file, eval=F}
+#### reading iterated counties shapefiles (to reduce time)
+if (file.exists("data/final_acs09_data.shp")==T){
+final_acs09_data <- st_read("data/final_acs09_data.shp")
+}
+if (file.exists("data/final_acs22_data.shp")==T){
+final_acs22_data <- st_read("data/final_acs22_data.shp")
+}
+```
+
 ### Transforming Tract Data and Calculating The Change In Foreign Born Cubans
 ```{r Transforming Cen}
 
@@ -466,7 +484,7 @@ tm <- tm_shape(final_viz_change_droppedNA) +
                  alpha = 0.4,
                  border.col = "black",  # Border color for polygons
                  border.alpha = 0.2) +  # Border transparency
-     tm_text("formatted_change_cuba_fb") +
+     # tm_text("formatted_change_cuba_fb") +
      tm_basemap("CartoDB.Positron")
 
 #tm <- tm + tm_shape(metro_micro_boundaries_final) +
@@ -475,10 +493,12 @@ tm <- tm_shape(final_viz_change_droppedNA) +
 # Print the map
 tm
 
-tmap_save(tm, 'Capstone_int_Map.html')
+tmap_save(tm, 'Capstone_int_Map_no_label.html')
 
 ```
-
+```{r leaflet_test, echo=F}
+tmap_leaflet(tm)
+```
 
 ## Metropolitan / Micropolitan Analysis
 
