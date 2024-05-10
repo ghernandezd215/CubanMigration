@@ -2,7 +2,12 @@
 title: "CUBAN MIGRATION ANALYSIS"
 author: "Gabriel Hernandez"
 date: "2024-03-21"
-output: html_document
+output: 
+  html_document:
+    code-folding: hide
+    toc: true
+    toc_float: true
+    code-download: true
 ---
 ```{r}
 #
@@ -320,7 +325,7 @@ change_fbcuban0922_split <- change_fbcuban0922 %>%
 
 The following chunk of code creates the iterative functions that will take a 'county' and 'state' column and run a get_acs() tidy census call for both 2009 and 2022. The variables are different each year so they have to be done separately. 
 
-```{r ITERATE GETACS FUNCTION, echo=TRUE}
+```{r ITERATE GETACS FUNCTION, echo=TRUE, cache=T}
 
 iterate_county22 <- function(df) {
   # List to store the results
@@ -398,7 +403,7 @@ iterate_county09 <- function(df) {
 
 ```
 ### Applying the Function Create 2009 and 2022 Objects
-```{r , results='hide', echo=TRUE, message=FALSE, warning= FALSE}
+```{r iteration, results='hide', echo=TRUE, message=FALSE, warning= FALSE, cache=T}
 # FEEL FREE TO RUN 'read_objects_from_file' CHUNK TO SAVE TIME
 final_acs09_data <- iterate_county09(change_fbcuban0922_split)
 final_acs22_data <- iterate_county22(change_fbcuban0922_split)
@@ -438,16 +443,20 @@ final_viz_change <- st_drop_geometry(final_acs09_data) %>%
 #dropNA values in change, won't visualize.
 final_viz_change_droppedNA <- final_viz_change[!is.na(final_viz_change$change_cuba_fb), ]
 
+final_viz_change_droppedZ_and_NA <- final_viz_change_droppedNA[(final_viz_change_droppedNA$change_cuba_fb) != 0,]
 
 #Add Geometry back
 final_viz_change_droppedNA<- final_viz_change_droppedNA%>%
+                             st_as_sf(sf_column_name='geometry')
+
+final_viz_change_droppedZ_and_NA<- final_viz_change_droppedZ_and_NA%>%
                              st_as_sf(sf_column_name='geometry')
 ```
 
 
 ## Data Analysis
 
-### 
+###
 
 
 
@@ -470,22 +479,28 @@ tmap_options(check.and.fix = TRUE)
 # Set tmap mode to interactive viewing
 tmap_mode("view")
 
-final_viz_change_droppedNA<-final_viz_change_droppedNA%>%
+plot_final<-final_viz_change_droppedZ_and_NA%>%
+  mutate(Count_Change=change_cuba_fb)%>%
   st_as_sf()
 
-final_viz_change_droppedNA <- final_viz_change_droppedNA %>%
+plot_final <- plot_final %>%
   mutate(formatted_change_cuba_fb = format(change_cuba_fb, big.mark=",", scientific=FALSE))
- st_simplify(final_viz_change_droppedNA, dTolerance = 0.01, preserveTopology = TRUE)
+ st_simplify(plot_final, dTolerance = 0.01, preserveTopology = TRUE)
 # Create the map
-tm <- tm_shape(final_viz_change_droppedNA) + 
-     tm_polygons("change_cuba_fb", breaks = c(-1015, -500, 0, 500, 1847), 
-                 title = "Change in Count of Foreign Born Cubans", 
+tm <- tm_shape(plot_final
+               # name = "My Map"
+               ) + 
+     tm_polygons("Count_Change", breaks = c(-1015, -500, -250, 0, 250, 500, 1847), 
+                 title = "Change in Count of Foreign Born Cubans",
+                 # id = "Count of Change",
                  palette = "-RdYlBu",  # Color palette
-                 alpha = 0.4,
+                 alpha = 0.6,
                  border.col = "black",  # Border color for polygons
                  border.alpha = 0.2) +  # Border transparency
      # tm_text("formatted_change_cuba_fb") +
-     tm_basemap("CartoDB.Positron")
+     tm_basemap("Esri.WorldStreetMap")
+
+# title in tm_layout
 
 #tm <- tm + tm_shape(metro_micro_boundaries_final) +
          # tm_borders(col = "red", lwd = .5, alpha = 0.3)  # Customize the boundary style
@@ -493,7 +508,7 @@ tm <- tm_shape(final_viz_change_droppedNA) +
 # Print the map
 tm
 
-tmap_save(tm, 'Capstone_int_Map_no_label.html')
+tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change_tooltip.html')
 
 ```
 ```{r leaflet_test, echo=F}
@@ -506,6 +521,9 @@ tmap_leaflet(tm)
 
 #### Metropolitan Areas Outside of Florida
 
+**Start Knit Test**
+`r summary(noFL_metros)`
+**End Knit Test**
 Median count total housing units: 1026146
 :Average rent v income perc - 30.0`%
 MEDIAN COUNT fb cuban - 2054
