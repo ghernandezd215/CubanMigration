@@ -425,29 +425,15 @@ final_viz_change_droppedNA <- final_viz_change[!is.na(final_viz_change$change_cu
 final_viz_change_droppedNA<- final_viz_change_droppedNA%>%
                              st_as_sf(sf_column_name='geometry')
 ```
-### Intersect All-USA Core-Based Areas SF Object To Get Boundaries
-
-The chunk below intersects the selected counties object, the same one used to perform the census-tract level object, with the US-wide metropolitan and micropolitan boundaries object introduced at the beginning of the analysis. Again, this is done to show the boundaries on the interactive map for more context. 
-
-```{r}
-#we are going to intercect all metro and micro areas with the selected counties object 'change_fbcuban0922'
 
 
-metro_micro_boundaries_final <-USA_allcba%>%
-                     
-                     st_as_sf()%>%
-                     st_transform(st_crs(change_fbcuban0922))
-                     st_intersection(change_fbcuban0922)
-
-
-```
 ## Data Analysis
 
 ### 
 
 
 
-#Results
+# Results
 
 ## Census Tract Level Interactive Map
 
@@ -468,26 +454,32 @@ tmap_mode("view")
 
 final_viz_change_droppedNA<-final_viz_change_droppedNA%>%
   st_as_sf()
-# Create the map
-tm <- tm_shape(final_viz_change_droppedNA) +  # Adds the 'final' object
-     tm_polygons("change_cuba_fb", breaks = c(-1015, -500,0, 500, 1847), title = "Change in Count of Foreign Born Cubans", 
-                palette = "-RdYlBu",  # Color palette  
-                alpha=0.4,
-                border.col = "black",  # Border color for polygons in 'final'
-                border.alpha = 0.3)+ # Border transparency
-   tm_text('change_cuba_fb')+
-   tm_basemap("Esri.WorldStreetMap")
-# Adding another layer with 'metro_micro_areas'
 
-# <- tm + tm_shape(metro_micro_boundaries_final) +
-        #   tm_borders(col = "red", lwd = .5, alpha = 0.3)  # Customize the boundary style
+final_viz_change_droppedNA <- final_viz_change_droppedNA %>%
+  mutate(formatted_change_cuba_fb = format(change_cuba_fb, big.mark=",", scientific=FALSE))
+ st_simplify(final_viz_change_droppedNA, dTolerance = 0.01, preserveTopology = TRUE)
+# Create the map
+tm <- tm_shape(final_viz_change_droppedNA) + 
+     tm_polygons("change_cuba_fb", breaks = c(-1015, -500, 0, 500, 1847), 
+                 title = "Change in Count of Foreign Born Cubans", 
+                 palette = "-RdYlBu",  # Color palette
+                 alpha = 0.4,
+                 border.col = "black",  # Border color for polygons
+                 border.alpha = 0.2) +  # Border transparency
+     tm_text("formatted_change_cuba_fb") +
+     tm_basemap("CartoDB.Positron")
+
+#tm <- tm + tm_shape(metro_micro_boundaries_final) +
+         # tm_borders(col = "red", lwd = .5, alpha = 0.3)  # Customize the boundary style
 
 # Print the map
 tm
 
-
+tmap_save(tm, 'Capstone_int_Map.html')
 
 ```
+
+
 ## Metropolitan / Micropolitan Analysis
 
 ### Summary Statistics
