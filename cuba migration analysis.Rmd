@@ -874,6 +874,15 @@ print(tm)
 
 ## Conclusion
 
+Reestate remittances and looking into the agents. based on literature review.
+
+set out to explore the data using summary statistics and regressions when possible. At the county level, the count of immigrants in 2009 was a significant predictor of changes in the count of foreign born Cubans. However that was when I included Miami, when I exclude it the relationship is less direct. I believe that the inclusion is acceptable given its historic relationship to Cuban Migration.
+
+Having the list of tables. Louisville. Markets that stand out. 
+
+The question about change in the count of foreign born Cubans speaks to the distribution of the Cuban diaspora in America. It also sets a groundwork for further spatial analysis and strategic organizing efforts. 
+
+
 
 That finding (county level regression, 09 presence, people follow network) supports the idea that people are still following their networks. use tableto find the best gross rent to income ratios. 
 
