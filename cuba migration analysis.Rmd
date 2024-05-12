@@ -745,7 +745,8 @@ plot(fl_micros$tot_housingunits22, fl_micros$tot_fb_cuba22)
 
 ## Regressions: County and Census Tracts in 2009 on the Count of Change
 
-For the Cou
+In the following data analysis I examine the relationship between the count of foreign-born  Cubans in 2009 and the change observed in 2022. I look at the County and Census tract levels using the filtered objects from the Census API calls.
+
 **Census Tracts**
 
 In the final dataset used to generate the interactive map, there are 4549 census tracts that do not have NA or 0 values of change in the count of Cubans between 2009 and 2022.The chunk below attempts to get a spearman and pearson coefficient, -0.46 and 0.10 respectively, for the relationship between counts of cubans in 2009 and the change observed in 2022. At the census tract level, the count of Cubans in 2009 could not by itself predict the changes observed in counts in 2022. 
@@ -760,6 +761,43 @@ data=final_viz_change_droppedZ_and_NA)
 summary(final_tracts_fit)
 
 ```
+
+
+**County Level**
+
+For this analysis I removed an outlier by making it only the counties that had less than 100000 foreign born cubans in 2009. But then i Went further and kept only those with 10000. The slight linear relationship between the presence of the community in 2009 and the changes that were observed gives some credence to the idea that people move based on their network. Perhaps scale varies the migration's absorption. For instance, Miami has a huge presence and gets the highest rices in counts. Perhaps that is an underlying characteristic of migration processes that sounds like the first law in geography. Places that already have migrants from a particular region will receive more of their people, but places with with even more presence will absorb more. 
+
+I did the same tests as above. Pearson and Spearman correlation results were 0.64, 0.31 respectively when i kept only counties that in 2009 had at most 10,000 cubans. When I add the outliers back in, the pearson coefficient increases to 0.94, and the regression returns an adjusted R2 of 0.88 and an a p-value < 0.0001 for the the count of foreign born cubans in 2009. 
+
+A note on Miami:it is an outlier as a value, but it is a very significant piece of the Cuban migration history and its high number only speaks to the scale of its connection to the Cuban immigrants. It would naturally supports the idea that people are still following their networks as the regression shows. Without the presence of such a strong magnet Cuban still grew slightly where they already were. But some counties decreased in counts of FB Cubans, why are they leaving?
+
+```{r}
+
+#object w the countties
+change_fbcuban0922$cub_fb_total09
+change_fbcuban0922$change_cuba_fb
+
+#filter outlier
+change_fbcuban0922reg<-change_fbcuban0922
+
+cor(change_fbcuban0922reg$cub_fb_total09,
+change_fbcuban0922reg$change_cuba_fb, method='spearman')
+cor(change_fbcuban0922reg$cub_fb_total09,
+change_fbcuban0922reg$change_cuba_fb, method='pearson')
+
+hist(change_fbcuban0922reg$change_cuba_fb)
+plot(change_fbcuban0922reg$cub_fb_total09,
+change_fbcuban0922reg$change_cuba_fb)
+final_counties_fit <- lm(change_cuba_fb ~ cub_fb_total09,
+data=change_fbcuban0922)
+summary(final_counties_fit)
+
+
+
+
+```
+
+
 
 # Discussion and Conclusion
 
@@ -835,6 +873,9 @@ print(tm)
 
 
 ## Conclusion
+
+
+That finding (county level regression, 09 presence, people follow network) supports the idea that people are still following their networks. use tableto find the best gross rent to income ratios. 
 
 ```{r knit_etc., eval=F, include=F}
 ### not a good-looking as the knitr function
