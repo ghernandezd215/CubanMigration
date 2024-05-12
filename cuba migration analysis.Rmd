@@ -129,7 +129,7 @@ A metropolitan or micropolitan statistical area contains a core area with a subs
 
 The first Census API call is to get all of the core-based statistical areas across the United States using ACS 5- Year Estimates for 2022 and filter them based the count of foreign-born Cubans. I separate the data into metropolitan and micropolitan areas. I then filter the data frame to create subsets that provide context to the existing presence of Cuban migrants.
 
-Once I have isolated metro and micro statistical areas, as they are both returned in the call. I use filter() on metro areas to get those that have 1000+ foreign born cubans, and 100+ for micro areas. Lastly, because the majority of the Cuban migration is related to Florida, I further filtered the USA_metro and USA_micro objects to those that are in Florida and outside of it. I believe this will provide more context to the general story of Cuban Migration which is hyper-focused on Miami. 
+Once I have isolated metro and micro statistical areas, as they are both returned in the call. I use filter() on metro areas to get those that have 1000+ foreign born cubans, and 100+ for micro areas. These numbers were chosen arbitrarily  Lastly, because the majority of the Cuban migration is related to Florida, I further filtered the USA_metro and USA_micro objects to those that are in Florida and outside of it. I believe this will provide more context to the general story of Cuban Migration which is hyper-focused on Miami. 
 
 ```{r CBA OBJECTS , echo=TRUE}
 
@@ -458,25 +458,65 @@ final_viz_change_droppedZ_and_NA<- final_viz_change_droppedZ_and_NA%>%
 
 ## Metropolitan / Micropolitan Tables and Summaries {.tabset}
 
-The following tables show the markets that remained when I applied previously described filters to the metro/micropolitan areas of the United States. I have sorted them firstly using the the highest count of Cubans, then the lowest Gross Rent to Income Ratio, and lastly the highest count of housing units.
+The following tables show the markets that remained when I applied previously described filters to the metro/micropolitan areas of the United States. I have sorted them firstly using the the highest counts of Foreign-Born Cubans. The Green column highlights the counts, the yellow column compares the gross rent to income ratios. It is also worth noting the counts of total housing units as they speak to the scale of the markets. 
 
-
+Disclaimer: because there are outlier markets, for the count of housing units i chose to go with the median rather than the average. 
 
 ### Metropolitan Areas Outside of Florida
-** Table
-```{r}
+
+**Table **
+
+```{r , results='asis', format='html'}
+
+# Sorting the data
+noFL_metros_sorted <- noFL_metros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+noFL_metros_kable <- noFL_metros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+  kbl(caption = "Metropolitan Areas Outside Florida") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e') 
+ 
+
+# Print the table to view in an RMarkdown output or similar
+noFL_metros_kable
+```
+
+**Summary statistics **
+
+```{r , results='asis', format='html'}
+
+summary_stats_noflmetros <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio(Percentage)", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(1026146, 30.0, 2054, 1980),0
+))
+
+# Generate kable table
+kable(summary_stats_noflmetros, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = '#68a6d5')
 
 ```
-** Summary statistics**
 
-Median count total housing units: 1026146
-:Average rent v income perc - 30.0`%
-MEDIAN COUNT fb cuban - 2054
-mean year structure built: 1980
 
 ### Metropolitan Areas in Florida
+
 **Table**
-```{r}
+```{r, results='asis', format='html'}
 
 # Sorting the data
 fl_metros_sorted <- fl_metros %>%
@@ -485,50 +525,140 @@ fl_metros_sorted <- fl_metros %>%
 # Creating the table with kable and kableExtra
 
 fl_metro_kable <- fl_metros_sorted %>%
-  kable("html", table.attr = "style='width:100%;'") %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+ kableExtra::  kbl(caption = "Florida Metropolitan Areas") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
   kable_styling(
-    full_width = FALSE, 
     position = "center",
-    font_size = 12
+    font_size = 12,
+    
   ) %>%
-  column_spec(1, bold = TRUE, color = "red") %>%
-  column_spec(2, background = "#FFF2CC") %>%
-  column_spec(3, italic = TRUE)
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e') 
 
 # Print the table to view in an RMarkdown output or similar
 fl_metro_kable
 ```
-Median count total housing units: 260981
-:Average rent v income perc - 33.08`%
-MEDIAN COUNT fb cuban - 4322
-mean year structure built: 1989
+
+**Summary Statistics**
+```{r , results='asis', format='html'}
+
+summary_stats_flmetros <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio(Percentage)", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(260981, 33.08, 4322, 1989), 0)
+)
+
+# Generate kable table
+kable(summary_stats_flmetros, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = '#68a6d5')
+
+```
+
 
 ### Micropolitan Areas in Florida
 
 **Table**
-```{r}
+```{r , results='asis', format='html'}
+
+# Sorting the data
+fl_micros_sorted <- fl_micros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+fl_micros_kable <- fl_micros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+  kbl(caption = "Florida Micropolitan Areas") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e')
+
+# Print the table to view in an RMarkdown output or similar
+fl_micros_kable
+```
+
+**Summary Statistics**
+```{r results='asis', format='html'}
+
+summary_stats_flmicro <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(18496, 31.49, 251, 1986),0)
+)
+
+# Generate kable table
+kable(summary_stats_flmicro, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+ row_spec(0, bold = TRUE, background = '#68a6d5')
+
 
 ```
 
-**Summary Statistics
-Median count total housing units: 18496
-:Average rent v income perc - 31.49
-MEDIAN COUNT fb cuban - 251
-mean year structure built: 1986
 
 ### Micropolitan Areas Outside of Florida
 
 **Table**
-```{r}
+```{r results='asis', format='html'}
 
+
+# Sorting the data
+noFL_micros_sorted <- noFL_micros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+noFL_micros_kable <- noFL_micros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+  kbl(caption = "Micropolitan Areas Outside of Florida") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e')
+ 
+
+# Print the table to view in an RMarkdown output or similar
+noFL_micros_kable
 ```
 
-** Summary Statistics**
+**Summary Statistics**
 
-Median count total housing units: 17833
-:Average rent v income perc - 25.81%
-MEDIAN COUNT fb cuban - 160
-mean year structure built: 1976
+```{r results='asis', format='html'}
+
+summary_stats_nofl_micros <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio(Percentage)", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(17833, 25.81, 160, 1976),0)
+)
+
+# Generate kable table
+kable(summary_stats_nofl_micros, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = '#68a6d5')
+
+```
 
 ## Regressions {.tabset}
 
@@ -601,15 +731,13 @@ hist(fl_micros$tot_housingunits22)
 
 
 ```
-### Tables
-
-The following tables show the markets that remained when I applied previously described filters to the metro/micropolitan areas of the United States. I have sorted them firstly using the the highest count of Cubans, then the lowest Gross Rent to Income Ratio, and lastly the highest count of housing units.
 
 
 
 
-## Does the 2009 count of foreign born cubans correlate with the observed changes in the data?
-### County Level
+
+## Correlation: 2009 Count of Foreign-Born Cubans and Observed Changes in 2022
+
 ```{r r2 Migration, echo=TRUE}
 
 
@@ -622,11 +750,20 @@ final_viz_change_droppedNA
 
 ## Census Tract Level Interactive Map
 
-```{r echo=FALSE, results='hide'}
+```{r , echo=FALSE, results='asis',format='html', warning=FALSE}
 # Install (if necessary) and load the tmap package
 if (!requireNamespace("tmap", quietly = TRUE)) {
     install.packages("tmap")
 }
+if (!requireNamespace("webshot", quietly = TRUE)) {
+    install.packages("webshot")
+    webshot::install_phantomjs()
+}
+
+if (!requireNamespace("webshot2", quietly = TRUE)) {
+    install.packages("webshot2")
+}
+
 library(tmap)
 library(dplyr)
 library(sf)
@@ -641,22 +778,8 @@ plot_final<-final_viz_change_droppedZ_and_NA%>%
 
 plot_final <- plot_final %>%
   mutate(formatted_change_cuba_fb = format(change_cuba_fb, big.mark=",", scientific=FALSE))
- st_simplify(plot_final, dTolerance = 0.01, preserveTopology = TRUE)
+ #st_simplify(plot_final, dTolerance = 0.01, preserveTopology = TRUE)
  
-
-```
-
-```{r}
-
-# Install (if necessary) and load the tmap package
-if (!requireNamespace("tmap", quietly = TRUE)) {
-    install.packages("tmap")
-}
-library(tmap)
-library(dplyr)
-library(sf)
-tmap_options(check.and.fix = TRUE)
-
 # Set tmap mode to interactive viewing
 tmap_mode("view")
 # Create the map
@@ -677,15 +800,19 @@ tm <- tm_shape(plot_final
 
      
 # Print the map
-tm2<-tmap_leaflet(tm)
+#tm2<-tmap_leaflet(tm)
     
     
 
-tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change_tooltip.html')
+#tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change_tooltip.html')
 
 
-tm2
+print(tm)
+
+
+
 ```
+
 ## Conclusion
 
 
