@@ -762,6 +762,8 @@ summary(final_tracts_fit)
 
 ## Census Tract Level Interactive Map
 
+The interactive map below is my favorite part about combining curiousity about a research question and understanding how to leverage computer programming to create a cool visual tool. Below are the census tracts across the United States that show changes to their Count of Foreign Born Cubans between 2009 and 2022. When you click a tract, the value of change will pop up. Another key piece of this interactive map is that it allows us to see the relationship between Cuban migration and the structure of the metropolitan region. When the tracts are outside of urban centers, what does it mean? When they are near city centers,it asks questions about the history of Cubans in that community. Overall, I think this tool can help researchers of Cuban history consider differently the footprint of the Cuban diaspora relative to the centuries of history that defined the U.S-Havana relationship. 
+
 ```{r , echo=FALSE, format='html', warning=FALSE}
 # Install (if necessary) and load the tmap package
 if (!requireNamespace("tmap", quietly = TRUE)) {
@@ -800,7 +802,7 @@ tm <- tm_shape(plot_final
                ) + 
      tm_polygons("Count_Change", breaks = c(-1015, -500, -250, 0, 250, 500, 1847), 
                  title = "Change in Count of Foreign Born Cubans",
-                 # id = "Count of Change",
+                 id = "Count of Change",
                  palette = "-RdYlBu",  # Color palette
                  alpha = 0.6,
                  border.col = "black",  # Border color for polygons
@@ -826,6 +828,8 @@ print(tm)
 ```
 
 ## Conclusion
+
+
 
 
 
