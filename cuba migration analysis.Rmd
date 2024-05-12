@@ -743,14 +743,18 @@ plot(fl_micros$tot_housingunits22, fl_micros$tot_fb_cuba22)
 
 
 
-## Correlation: 2009 Count of Foreign-Born Cubans and Observed Changes in 2022
+## Regressions: County and Census Tracts in 2009 on the Count of Change
+
+In the final dataset used to generate the interactive map, there are 4549 census tracts that do not have NA or 0 values of change in the count of Cubans between 2009 and 2022.The chunk below attempts to get a spearman and pearson coefficient, -0.46 and 0.10 respectively, for the relationship between counts of cubans in 2009 and the change observed in 2022. At the census tract level, the count of Cubans in 2009 could not by itself predict the changes observed in counts in 2022. 
 
 ```{r r2 Migration, echo=TRUE}
 
+spearman<-cor(final_viz_change_droppedZ_and_NA$cub_fb_total09, final_viz_change_droppedZ_and_NA$change_cuba_fb, method="spearman")  
+pearson<- cor(final_viz_change_droppedZ_and_NA$cub_fb_total09, final_viz_change_droppedZ_and_NA$change_cuba_fb, method="pearson")       #method can be 
 
-Florida_micros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_micros)
-summary(Florida_micros_fit)
-final_viz_change_droppedNA
+final_tracts_fit <- lm(change_cuba_fb ~ cub_fb_total09,
+data=final_viz_change_droppedZ_and_NA)
+summary(final_tracts_fit)
 
 ```
 
