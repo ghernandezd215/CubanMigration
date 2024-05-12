@@ -460,7 +460,7 @@ final_viz_change_droppedZ_and_NA<- final_viz_change_droppedZ_and_NA%>%
 
 The following tables show the markets that remained when I applied previously described filters to the metro/micropolitan areas of the United States. I have sorted them firstly using the the highest counts of Foreign-Born Cubans. The Green column highlights the counts, the yellow column compares the gross rent to income ratios. It is also worth noting the counts of total housing units as they speak to the scale of the markets. 
 
-Disclaimer: because there are outlier markets, for the count of housing units i chose to go with the median rather than the average. 
+Disclaimer: because there are outlier markets, for the count of housing units I chose to go with the median rather than the average. 
 
 ### Metropolitan Areas Outside of Florida
 
@@ -802,15 +802,15 @@ tm <- tm_shape(plot_final
                ) + 
      tm_polygons("Count_Change", breaks = c(-1015, -500, -250, 0, 250, 500, 1847), 
                  title = "Change in Count of Foreign Born Cubans",
-                 id = "Count of Change",
+                 # id = "Count of Change",
                  palette = "-RdYlBu",  # Color palette
                  alpha = 0.6,
                  border.col = "black",  # Border color for polygons
                  border.alpha = 0.2) +  # Border transparency
      # tm_text("formatted_change_cuba_fb") +
      tm_layout(title = '2009-2022 ACS 5- Year Estimates: Foreign-Born Cuban Migration')+
-     tm_basemap("Esri.WorldStreetMap")+
-     tm_view(view.legend.position = c("right", "bottom")) 
+     tm_basemap("Esri.WorldStreetMap") #+
+     # tm_view(view.legend.position = c("right", "bottom")) 
 
      
 # Print the map
@@ -818,11 +818,12 @@ tm <- tm_shape(plot_final
     
     
 
-#tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change_tooltip.html')
+#tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change.html')
 
 
+# print(tmap_leaflet(tm))
+# tmap_leaflet(tm)
 print(tm)
-
 
 
 ```
@@ -834,5 +835,6 @@ print(tm)
 
 
 ```{r knit_etc., eval=F, include=F}
+### not a good-looking as the knitr function
 rmarkdown::render(input="cuba migration analysis.Rmd",output_format = "html_document",output_file = "working_outputs/cuba_migration_analysis.html")
 ```
