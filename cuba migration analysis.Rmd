@@ -401,7 +401,7 @@ iterate_county09 <- function(df) {
 }
 
 ```
-### Applying the Function Create 2009 and 2022 Objects
+**Applying the Function Create 2009 and 2022 Objects**
 
 ```{r iteration, results='hide', echo=TRUE, message=FALSE, warning= FALSE, cache=T}
 # FEEL FREE TO RUN 'read_objects_from_file' CHUNK TO SAVE TIME
@@ -745,9 +745,12 @@ plot(fl_micros$tot_housingunits22, fl_micros$tot_fb_cuba22)
 
 ## Regressions: County and Census Tracts in 2009 on the Count of Change
 
+For the Cou
+**Census Tracts**
+
 In the final dataset used to generate the interactive map, there are 4549 census tracts that do not have NA or 0 values of change in the count of Cubans between 2009 and 2022.The chunk below attempts to get a spearman and pearson coefficient, -0.46 and 0.10 respectively, for the relationship between counts of cubans in 2009 and the change observed in 2022. At the census tract level, the count of Cubans in 2009 could not by itself predict the changes observed in counts in 2022. 
 
-```{r r2 Migration, echo=TRUE}
+```{r r2 Migration Census Tracts, echo=TRUE}
 
 spearman<-cor(final_viz_change_droppedZ_and_NA$cub_fb_total09, final_viz_change_droppedZ_and_NA$change_cuba_fb, method="spearman")  
 pearson<- cor(final_viz_change_droppedZ_and_NA$cub_fb_total09, final_viz_change_droppedZ_and_NA$change_cuba_fb, method="pearson")       #method can be 
@@ -762,7 +765,7 @@ summary(final_tracts_fit)
 
 ## Census Tract Level Interactive Map
 
-The interactive map below is my favorite part about combining curiousity about a research question and understanding how to leverage computer programming to create a cool visual tool. Below are the census tracts across the United States that show changes to their Count of Foreign Born Cubans between 2009 and 2022. When you click a tract, the value of change will pop up. Another key piece of this interactive map is that it allows us to see the relationship between Cuban migration and the structure of the metropolitan region. When the tracts are outside of urban centers, what does it mean? When they are near city centers,it asks questions about the history of Cubans in that community. Overall, I think this tool can help researchers of Cuban history consider differently the footprint of the Cuban diaspora relative to the centuries of history that defined the U.S-Havana relationship. 
+The interactive map below is my favorite part about combining curiousity about a research question and understanding how to leverage computer programming to create a cool visual tool. Below are the census tracts across the United States that show changes to their Count of Foreign Born Cubans between 2009 and 2022. When you click a tract, the value of change will pop up. Another key piece of this interactive map is that it allows us to see the relationship between Cuban migration and the structure of the metropolitan region. When the tracts are outside of urban centers, what does it mean? When they are near city centers, how long have they been there? What kind of neighborhood? Overall, I think this tool can help researchers of Cuban history consider differently the footprint of the Cuban diaspora relative to the centuries of history that defined the U.S-Havana relationship. Especially the waves of migration that have taken place the past 65 years.
 
 ```{r , echo=FALSE, format='html', warning=FALSE}
 # Install (if necessary) and load the tmap package
@@ -805,8 +808,8 @@ tm <- tm_shape(plot_final
                  # id = "Count of Change",
                  palette = "-RdYlBu",  # Color palette
                  alpha = 0.6,
-                 border.col = "black",  # Border color for polygons
-                 border.alpha = 0.2) +  # Border transparency
+                 border.col = "black"  # Border color for polygons
+                 ) +  # Border transparency
      # tm_text("formatted_change_cuba_fb") +
      tm_layout(title = '2009-2022 ACS 5- Year Estimates: Foreign-Born Cuban Migration')+
      tm_basemap("Esri.WorldStreetMap") #+
@@ -818,7 +821,7 @@ tm <- tm_shape(plot_final
     
     
 
-#tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change.html')
+tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change.html')
 
 
 # print(tmap_leaflet(tm))
@@ -828,11 +831,10 @@ print(tm)
 
 ```
 
+<iframe src="working_outputs/tmap/Capstone_int_Map_change.html" style="width:100%; height:600px;"></iframe>
+
+
 ## Conclusion
-
-
-
-
 
 ```{r knit_etc., eval=F, include=F}
 ### not a good-looking as the knitr function
