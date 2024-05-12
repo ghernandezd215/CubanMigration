@@ -660,22 +660,29 @@ kable(summary_stats_nofl_micros, format = "html", col.names = c("Statistic", "Va
 
 ```
 
-## Regressions {.tabset}
+## Correlations/Regressions 
 
-The results of the regressions below lack predictive power. When the total count of housing units shows up as a significant predictor (p-value < 0.001), it does not make a major difference in the count of foreign born Cubans. The analysis would benefit from removing outliers, and ultimately it is limited by the count of observations. 
+For each of the models that I ran I looked at how the total count of foreign born cubans was impacted by the variables shown above (total number of housing units, gross rent to income ratios, or the median year of structures. The results of the regressions below lack predictive power.Highlighting a need for better feature engineering to predict what markets attract Cuban immigrants.  
 
-### Outside of Florida: Metropolitan Areas Regression
+There were times when the total count of housing units showed up as a significant predictor (p-value < 0.001). But it did not make a noticeable difference in the count of foreign born Cubans per unit of increase. The analysis would benefit from more preparation to catch outliers, and a larger quantity of observations.
+
+Below are some results from the exploratory analysis.
+
+**Outside of Florida: Metropolitan Areas Regression ** 
 
 The total Count of Housing Units was a significant predictor until I removed the New York/Newark metropolitan area from the model's observations. Even then, it did not make significant change in the count per unit of housing increased (less than a person).
 
-Below is a scatter plot showing that the majority of metropolitan areas outside of Florida where there are cubans have less than 3 million housing units. 
-```{r , noFL_Metros Regression}
+Below is a scatter plot showing that the metropolitan areas outside of Florida that Cuban Immmigrants tend to live have less than 3 million housing units. Really, there is a visible concentration below in metropolitan areas with less than 2 million housing units. This can mean that the settlement choices of Cubans are smaller markets than a world city like New York, for instance. 
+
+```{r , noFL_Metros Regression, echo=TRUE}
+
 #remove outlier (NY NJ) for better scatterplot of housing units
 
 noFL_metros<- noFL_metros%>%
   filter(!str_detect(NAME, 'New York'))
 
 noFL_metro_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22+  med_yb22, data=noFL_metros)
+
 summary(noFL_metro_fit)
 
 plot(noFL_metros$tot_fb_cuba22, noFL_metros$tot_housingunits22)
@@ -684,11 +691,11 @@ plot(noFL_metros$tot_fb_cuba22, noFL_metros$tot_housingunits22)
 ```
 
 
-### Florida: Metropolitan Areas Regression
+**Florida: Metropolitan Areas Regression**
 
-When it comes to Florida, I removed Tampa and Miami outliers and ran the same regression. The adjusted R square was .74, suggesting a strong model with the few variables that we have. Again, the only strong predictor was housing units (p-value <0.0001) but the unit increase only altered the count of foreign born Cubans by less than a person.
+When it comes to Florida, Tampa and Miami are clear outliers ran the same regression as above. The adjusted R square was .74, suggesting a stronger model with the few variables that we have. Again, strong predictors were housing units (p-value <0.005) and the median year of built structures(p < 0.002). 
 
-Below is a scatterplot of the Total count of Housing units and the total count of foreign born Cubans. 
+Below is a scatterplot of the Total count of housing units and the total count of foreign born Cubans. 
 
 ```{r , FL_Metros Regression}
 
@@ -698,6 +705,7 @@ fl_metros<- fl_metros%>%
 
 fl_metros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_metros)
 summary(fl_metros_fit)
+
 plot(fl_metros$tot_fb_cuba22, fl_metros$tot_housingunits22)
 
 
@@ -705,34 +713,33 @@ plot(fl_metros$tot_fb_cuba22, fl_metros$tot_housingunits22)
 
 
 
-### Outside of Florida: Micropolitan Areas 
+**Outside of Florida: Micropolitan Areas**
 
-The resulting regression did not return any strong predictors. This could be due to the distribution of the data, seen below. This makes sense given that we are talking about micropolitan areas. My theory is that the decision to settle in these areas is due to factors that would require deeper investigation than one using Census data. They may be more nuanced and network-related. Interviews and oral histories would best shed light on this aspect of the Cuban migration story.
+The resulting regression did not return any strong predictors. This could be due to the distribution of the data, seen below. It makes sense given that we are talking about micropolitan areas. My theory is that the decision to settle in these areas is due to factors that would require deeper investigation than one using Census data. They may be more nuanced and network-related. Interviews and oral histories would best shed light on this aspect of the Cuban migration story.
 
 ```{r , noF_Micros Regression}
 
 noFl_micro_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=noFL_micros)
-hist(noFL_micros$tot_housingunits22)
+summary(noFl_micro_fit)
+plot(noFL_micros$tot_housingunits22, noFL_micros$tot_fb_cuba22)
 
 
 
 ```
 
 
-### Florida: Micropolitan Areas Regression
+**Florida: Micropolitan Areas Regression**
 
-There are too few observations to make any meaningful statistical inferences. However, again it would be wise to take the table of these areas and investigate deeper the roots of their cuban communities.
+There are too few observations to make any meaningful statistical inferences for this subset of data. However, like with the micropolitan areas outside of Florida, it would be good to investigate deeper the roots of their Cuban communities.
 
 ```{r , FL_Micros Regression}
 
 Florida_micros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_micros)
 summary(Florida_micros_fit)
-hist(fl_micros$tot_housingunits22)
+plot(fl_micros$tot_housingunits22, fl_micros$tot_fb_cuba22)
 
 
 ```
-
-
 
 
 
@@ -741,7 +748,8 @@ hist(fl_micros$tot_housingunits22)
 ```{r r2 Migration, echo=TRUE}
 
 
-
+Florida_micros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_micros)
+summary(Florida_micros_fit)
 final_viz_change_droppedNA
 
 ```
@@ -750,7 +758,7 @@ final_viz_change_droppedNA
 
 ## Census Tract Level Interactive Map
 
-```{r , echo=FALSE, results='asis',format='html', warning=FALSE}
+```{r , echo=FALSE, format='html', warning=FALSE}
 # Install (if necessary) and load the tmap package
 if (!requireNamespace("tmap", quietly = TRUE)) {
     install.packages("tmap")
