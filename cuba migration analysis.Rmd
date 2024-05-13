@@ -62,7 +62,7 @@ crs='EPSG:3857'
 
 
 ```
-# Introduction
+# <span style="color: '#ca5733';font-weight: bold;">Introduction</span>
 
 In the past few years 5% of Cuba's 11 million person population was encountered at the U.S. border. Once processed, they begin a process towards becoming permanent residents within a year settle in different parts of the United States. Many of these migrants maintain connections to family and friends in Cuba and the remittances that they eventually send back are a significant aspect of the Cuban economy. The purpose of this report is to explore the distribution of the foreign-born Cuban population in the United States. The intention here is to provide context and support for the topic of Cuban migration and remittance landscapes.
 
@@ -78,7 +78,7 @@ Lastly, knowing where there have been changes in the population of foreign-born 
 
 With all these uses in mind, I sought to gain some insight into the changing Cuban-American landscape. 
 
-# Data Wrangling
+# <span style="color: '#68a6d5';font-weight: bold;"> Data Wrangling </span>
 
 In order to perform the exploratory analysis I will use tidycensus to get data and its associated geometries. I will be operating on three scales: core-based areas, counties, and census tracts. It is important at this point to note that the the Census defines 'foreign-born' populations as 'anyone who is not a U.S. citizen at birth, including those who become U.S. citizens through naturalization.' Therefore, I do not study the Cuban-American population (born in the US but identify as Cuban heritage). 
 
@@ -188,7 +188,8 @@ fl_metros <-USA_metros %>%
 ```
 
 
-## County Data and Calculating Change over Time
+## County Data and Calculating Change over Time {.tabset}
+
 
 To get the original county data, an API call was made for all counties in the United States that included the count of foreign born cubans in 2009 and in 2022. The change between 2022 and 2009 was calculated for each county. I filtered the counties as those that saw increases of 500 or more, and those that had decreases 500 or less. I combined the two sets into one object that had 73 counties. 
 
@@ -274,8 +275,7 @@ change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_inc
 
 ```
 
-### Functions to Process the Selected Counties as inputs for their Census Tract Level Data
-
+### Functions to Process the Selected Counties as inputs for their Census Tract Level Data 
 Upon analyzing the counties I chose using plus/minus 500 foreign born cubans as the cutoff for both decreasing and increasing changes in foreign born Cuban counts. I created an sf object of counties that between 2009-2022 had either lost or absorbed 500 foreign-born Cubans. I then used this as the input for an iterative call to get their census tract level data. 
 
 It is at this level that I desired to create the interactive map below. 
@@ -453,7 +453,7 @@ final_viz_change_droppedZ_and_NA<- final_viz_change_droppedZ_and_NA%>%
                              st_as_sf(sf_column_name='geometry')
 ```
 
-# Data Analysis and Results
+# <span style="color: '#3B914e';font-weight: bold;">Data Analysis and Results</span>
 
 
 ## Metropolitan / Micropolitan Tables and Summaries {.tabset}
@@ -799,7 +799,8 @@ summary(final_counties_fit)
 
 
 
-# Discussion and Conclusion
+# <span style="color: '#fbc61d';font-weight: bold;"> Discussion and Conclusion </span>
+
 
 ## Census Tract Level Interactive Map
 
@@ -863,8 +864,10 @@ tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change.html')
 
 
 # print(tmap_leaflet(tm))
-# tmap_leaflet(tm)
-print(tm)
+tm<-tmap_leaflet(tm)
+
+tm
+#print(tm)
 
 
 ```
