@@ -844,7 +844,7 @@ tm <- tm_shape(plot_final
                ) + 
      tm_polygons("Count_Change", breaks = c(-1015, -500, -250, 0, 250, 500, 1847), 
                  title = "Change in Count of Foreign Born Cubans",
-                 # id = "Count of Change",
+                 id = "Count of Change",
                  palette = "-RdYlBu",  # Color palette
                  alpha = 0.6,
                  border.col = "black"  # Border color for polygons
@@ -872,22 +872,20 @@ tm
 
 ```
 
-<iframe src="working_outputs/tmap/Capstone_int_Map_change.html" style="width:100%; height:600px;"></iframe>
+<iframe src="working_outputs/tmap/Capstone_int_Map_change.html" data-external="1" style="width:100%; height:600px;"></iframe>
 
 
 ## Conclusion
 
-Reestate remittances and looking into the agents. based on literature review.
+The economic situation in Cuba is becoming increasingly more difficult for the majority of the population. High inflation, lack of goods, and the emigration of young people are a few of the reasons why. In this context, transnational Cubans buy and sell properties, utilizing their purchasing power to renovate buildings, apartments, or construct new structures altogether. Articles confirm that investing in Cuba is affordable. Many of the investments are meant to create Airbnbs, others are to create spaces of belonging from the perspective of the transnational Cuban. 
 
-set out to explore the data using summary statistics and regressions when possible. At the county level, the count of immigrants in 2009 was a significant predictor of changes in the count of foreign born Cubans. However that was when I included Miami, when I exclude it the relationship is less direct. I believe that the inclusion is acceptable given its historic relationship to Cuban Migration.
+At a smaller scale, remittances sent to Cuba are one of the few release valves for families that are under pressure to survive a life defined by scarcity. Remittances are transactions that connect two places. The World Bank defines them as portions of a migrant worker's income that is sent to a person in their country of origin. Through photographs included in the Powerpoint presentation of this project, the functions of remittance capital investment are visible in Cuba's built environment. However, the places where the capital originates is a bit more obscure. In light of a recent surge of migration into the United States, I wanted to answer the questions: "where are the foreign-born Cubans in the United States?" and "how have their numbers changed over time?" The hope was to identify and analyze places of remittance capital production for Cuban migrants. 
 
-Having the list of tables. Louisville. Markets that stand out. 
+Using an iterative process, the interactive map in this report shows the changes in counts of foreign-born Cuban migrants at the census tract level across a set of selected counties. The counties that had increases or decreases of 500 or more of the population under study  between 2009 and 2022. This visualization gives access to researchers and those that want to find Cuban communities in the United States to a spatial way if seeing the story of Cuban migration. Ultimately, its main contribution to the field of Cuban remittance landscapes and economics is a look at the places in America that will most likely absorb the 420,000+ Cubans that have entered the United States in the past 3 years. A significant portion of them will send money back to their families or travel back with luggages full of dried foods basic goods/gifts. Through Western Union services, they can send money straight into Cuban bank accounts of their families. These activities, and the efforts of those on the island in the face of 60+ years of strong sanctions against them, has resulted in Cuba's global identity as a place of resistance and resilience. 
 
-The question about change in the count of foreign born Cubans speaks to the distribution of the Cuban diaspora in America. It also sets a groundwork for further spatial analysis and strategic organizing efforts. 
+In this report I have included tables of metropolitan and micropolitan  areas inside and outside of Florida with more than 1000 or 100 foreign-born Cubans respectively. I wanted to see, based on the markets where Cubans were settled, what was the gross rent to income ratio as a percentage and other information. I wanted to put myself in my mother's shoes when she came to the US. Like many, she followed her network to Tampa, Florida. But what if she knew where she could go to lower the impact of housing costs on her family's standard of living? That she could have more money to send to her parents in Cuba? The city of Louisville stood out in the list of metropolitan areas outside of Florida because it had a count of +13000 Cubans and a low gross rent to income ratio. It is possible that it is a good place to move to if you are a new Cuban migrant to the US. 
 
-
-
-That finding (county level regression, 09 presence, people follow network) supports the idea that people are still following their networks. use tableto find the best gross rent to income ratios. 
+The analysis hints at the importance of context when it comes to the settlement patterns of migrants. At the county level the count of foreign-born cubans in 2009 was a strong predictor of the change observed in 2022 ACS 5-Year Estimates. I think that this project was a journey and the beginning of a lot more research. One could go in the direction of analyzing point of interest counts from open API requests to discuss power and influence, or drive around in the tracts looking for signs of the presence of Cubans. What kind of spaces are they creating? In the world of programmatic advertising, this preliminary research could guide a geomarketing campaign for a firm that offers Cuban remittance economy services as well as the demographic under study is their main client.
 
 ```{r knit_etc., eval=F, include=F}
 ### not a good-looking as the knitr function
