@@ -1,0 +1,893 @@
+---
+title: "CUBAN MIGRATION ANALYSIS"
+author: "Gabriel Hernandez"
+date: "2024-03-21"
+output: 
+  html_document:
+    theme: cosmo
+    toc: true
+    toc_float: true
+    code_folding: hide
+    code-download: true
+---
+```{r, echo=FALSE}
+#
+knitr::opts_chunk$set(comment = "#>", echo = TRUE, fig.width = 6, message = FALSE, results='hide', warnings= FALSE)
+#)
+
+
+```
+
+
+
+```{r install packages, echo=FALSE, message=FALSE, warning=FALSE}
+
+library(tidyverse)
+library(classInt)
+library(patchwork)
+library(mapview)
+library(tidycensus)
+library(sf)
+library(kableExtra)
+library(knitr)
+library(dplyr)
+library(kableExtra)
+library(osmdata)
+library(ggforce)
+library(tigris)
+library(flexdashboard)
+#library(scales)
+library(shiny)
+library(stringr)
+library(Hmisc)
+library(DAAG)
+library(car)  #to calculate VIF
+library(MASS)
+library(rsq)
+library(tidyverse)
+library(caret)
+library(dplyr)
+
+
+options(scipen=999)
+options(tigris_class = "sf")
+options(tigris_cache_dir= TRUE)
+
+source("https://raw.githubusercontent.com/urbanSpatial/Public-Policy-Analytics-Landing/master/functions.r")
+
+#Load API KEY
+census_api_key("3aedcfd189958d66a813a29a4b33580e78657644", overwrite = TRUE)
+#Set CRS
+crs='EPSG:3857'
+
+
+```
+# <span style="color: '#ca5733';font-weight: bold;">Introduction</span>
+
+In the past few years 5% of Cuba's 11 million person population was encountered at the U.S. border. Once processed, they begin a process towards becoming permanent residents within a year settle in different parts of the United States. Many of these migrants maintain connections to family and friends in Cuba and the remittances that they eventually send back are a significant aspect of the Cuban economy. The purpose of this report is to explore the distribution of the foreign-born Cuban population in the United States. The intention here is to provide context and support for the topic of Cuban migration and remittance landscapes.
+
+The literature review that I performed ahead of this exploratory analysis highlights the importance of remittances to Cuban families The results of investments in the built environment are as clear as the disinvestment. From personal experience, many Cubans work to send money back home in small ways like purchasing minutes and data for a phone line, and in big ways like fronting money for renovation materials, installing a new water tank systems, or purchasing a new home altogether. These processes inform an urbanism unique to Cuba, which is the subject of a larger study that could stem from this project.
+
+I believe that taking stock of the most granular level available through Census data will give interested parties insight into the field of remittance landscapes of Cuba and migratory urbanism. From a remittance economics perspective, the foreign born Cubans moving to the United States constitute the primary agents of remittance flows, they generate the capital with their labor. Usually, when there is more money in the pocket of an immigrant there is more available to remit. 
+
+If we can accept that places can function as sorting mechanisms for the settlement of peoples, then we can assume that migrants will settle where their network leads them. For some geogrpahic areas I take a look at where Cubans settle and compare metrics such as the total count of housing units and the gross rent to income ratio. Based on my experience living at the margins in America, the cost of one's rent relative to their income determines the standard of life that can be had. While doing this research, I put myself in my mother's shoes and wondered: If I had come to the United States, where could I live and keep more of my income? Where could I potentially access my community and have more money to remit?
+
+Moreover, from a business perspective, the resulting tables and plots offer first steps towards creating geomarketing campaigns intended to connect to the U.S.-based Cuban community. If someone has a business that, for instance, provides remittance services, it can get its message to the right places more efficiently.
+
+Lastly, knowing where there have been changes in the population of foreign-born Cubans in the U.S.is useful information for organizations advocate for the Cuban-American vote and other policy initiatives. 
+
+With all these uses in mind, I sought to gain some insight into the changing Cuban-American landscape. 
+
+# <span style="color: '#68a6d5';font-weight: bold;"> Data Wrangling </span>
+
+In order to perform the exploratory analysis I will use tidycensus to get data and its associated geometries. I will be operating on three scales: core-based areas, counties, and census tracts. It is important at this point to note that the the Census defines 'foreign-born' populations as 'anyone who is not a U.S. citizen at birth, including those who become U.S. citizens through naturalization.' Therefore, I do not study the Cuban-American population (born in the US but identify as Cuban heritage). 
+
+I compiled a list of variables for 2009 and 2022 ACS 5-Year Estimates. The codes differ between years so they were created from carefully reading load_variable() and filtering the outputs on R Studios interactive view(). All of the metropolitan and micropolitan data uses the 2022 estimates. The county and census tract data calls on both 2009 and 2022 in order to calculate the change over time in foreign-born Cubans. 
+
+
+```{r ACS LOAD VARIABLES, echo=FALSE}
+# vars for 2009 and 2022 for change over time comparison
+
+acs_variable_list.2009 <- load_variables(2009, #year
+                                         "acs5", #five year ACS estimates
+                                         cache = TRUE)
+
+acs09_vars <- c("B06003_013E", #Foreign Born - PLACE OF BIRTH BY SEX IN THE UNITED STATES
+              "B05002_013E", #Estimate!!Total!!Foreign born - PLACE OF BIRTH BY CITIZENSHIP STATUS
+              "B05007_039E", #Estimate!!Total!!Latin America!!Caribbean!!- Entered before 1980
+              "B25002_003E", #stimate!!Total!!Vacant OCCUPANCY STATUS
+              "B09016_002E", #Estimate!!Total!!In households - HOUSEHOLD TYPE (INCLUDING LIVING ALONE) BY RELATIONSHIP
+              "B19013_001E", #Estimate!!Median household income in the past 12 months (in 2009 inflation-adjusted dollars)
+              "B19037A_053E", #Estimate!!Total!!Householder 65 years and over
+              "B06012_002E", #Total!!Below 100 percent of the poverty level
+              "B25071_001E", #Median gross rent as a percentage of household income
+              "B25035_001E", #Median year structure built
+              "B19057_001E", #Total - PUBLIC ASSISTANCE INCOME IN THE PAST 12 MONTHS FOR HOUSEHOLDS
+              "B25001_001E", #Total HOUSING UNITS
+              "B05006_127E", #Total!!Americas!!Latin America!!Caribbean!!Cuba
+              "B25077_001E") #med values
+
+acs22load <- load_variables(2022, "acs5", cache = TRUE)
+acs22_vars <-c("B06012PR_002E", #Tot Below 100 percent of the poverty level
+               "B25002_003E", #TotalVacant
+               "B21004_001E", #Median income in the past 12 months (in 2022 inflation-adjusted dollars
+               "B09021_023E", #65 years and over Lives alone
+               "B25136_001E", #Total Housing Units
+               "B25071_001E", #Median gross rent as a percentage of household income
+               "B05006_143E", #Total:!!Americas:!!Latin America:!!Caribbean:!!Cuba
+               "B19057_002E", #Total:!!With public assistance income
+               "B25035_001E", #Median year structure built
+               "B25077_001E" #med values
+       )
+
+
+
+```
+## Core-Based Statistical Areas: ACS 5-Year Estimates 2022
+
+A metropolitan or micropolitan statistical area contains a core area with a substantial population nucleus, as well as adjacent communities having a high degree of economic and social integration with that core. Core Based Statistical Area (CBSA) term became effective in 2000 and refers collectively to metropolitan and micropolitan statistical areas.Each metropolitan statistical area must have one urbanized area of 50,000 or more inhabitants. Each micropolitan statistical area must have one urban cluster of 10,000 to 49,999 inhabitants
+
+The first Census API call is to get all of the core-based statistical areas across the United States using ACS 5- Year Estimates for 2022 and filter them based the count of foreign-born Cubans. I separate the data into metropolitan and micropolitan areas. I then filter the data frame to create subsets that provide context to the existing presence of Cuban migrants.
+
+Once I have isolated metro and micro statistical areas, as they are both returned in the call. I use filter() on metro areas to get those that have 1000+ foreign born cubans, and 100+ for micro areas. These numbers were chosen arbitrarily  Lastly, because the majority of the Cuban migration is related to Florida, I further filtered the USA_metro and USA_micro objects to those that are in Florida and outside of it. I believe this will provide more context to the general story of Cuban Migration which is hyper-focused on Miami. 
+
+```{r CBA OBJECTS , echo=TRUE}
+
+#get variables in core_based_statistical areas across USA
+
+USA_allcba <- get_acs(geography = "metropolitan statistical area/micropolitan statistical area",
+                             year = 2022, 
+                             variables = acs22_vars, 
+                             geometry = TRUE, 
+                             output = "wide") 
+
+#Rename the variables for the 2022 data
+USA_allcba <- USA_allcba %>%
+         rename(total_below_pov=B06012PR_002E,
+         tot_vacant22 = B25002_003E,
+         med_inc22 = B21004_001E,
+         up65_alone22 = B09021_023E,
+         tot_housingunits22 =B25136_001E,
+         gross_v_inc_perc22 = B25071_001E,
+         tot_fb_cuba22 = B05006_143E,
+         tot_pa_inc22 = B19057_002E,
+         med_yb22 = B25035_001E,
+         med_values22 = B25077_001E)%>%
+  mutate(vacpct22 = (tot_vacant22/tot_housingunits22)) %>%
+  st_as_sf(crs = crs)
+
+#Begin filtering
+USA_micros <- USA_allcba %>%
+              filter(grepl("Micro", NAME, ignore.case = TRUE)) %>%
+              dplyr:: select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
+              filter(tot_fb_cuba22 >= 100)%>%
+              arrange(desc(tot_fb_cuba22))
+
+USA_metros <- USA_allcba %>%
+             dplyr:: filter(grepl("Metro", NAME, ignore.case=TRUE)) %>%
+             dplyr:: select(NAME, GEOID,tot_housingunits22,gross_v_inc_perc22,tot_fb_cuba22,med_yb22, vacpct22) %>%
+              filter(tot_fb_cuba22 >= 1000)%>%
+              arrange(desc(tot_fb_cuba22))
+
+#create final objects for kable tables
+noFL_micros <- USA_micros %>%
+              filter(!grepl("FL M", NAME, ignore.case = TRUE)) 
+            
+
+noFL_metros <-USA_metros %>%
+              filter(!grepl("FL M" , NAME, ignore.case= TRUE))
+
+fl_micros <- USA_micros %>%
+             filter(grepl("FL M", NAME, ignore.case = TRUE)) 
+            
+
+fl_metros <-USA_metros %>%
+            filter(grepl("FL M" , NAME, ignore.case= TRUE))
+            
+
+```
+
+
+## County Data and Calculating Change over Time {.tabset}
+
+
+To get the original county data, an API call was made for all counties in the United States that included the count of foreign born cubans in 2009 and in 2022. The change between 2022 and 2009 was calculated for each county. I filtered the counties as those that saw increases of 500 or more, and those that had decreases 500 or less. I combined the two sets into one object that had 73 counties. 
+
+I used the 73 counties to do a iterative get_acs() API call for the tract level using the process in detail below. The end result is, for each of the counties in question, an object of their census-tract level observations of changes to the count of foreign-born Cubans. I visualize this object as one of the main outputs of this project: An interactive map that shows the changing distribution born Cubans in the United States. Again, from the lens of remittance landscapes, these places are in communication with the material world and households in Cuba which benefit from the work of these migrants.
+
+```{r COUNTY OBJECTS , echo=TRUE, warning=FALSE}
+
+USA_2009 <- get_acs(geography = "county",
+                             year = 2009, 
+                             variables = acs09_vars,
+                             geometry = TRUE, 
+                             output = "wide") 
+USA_2009 <- USA_2009 %>%
+          rename(
+          fb_placebysex.2009 = B06003_013E,
+          totalfb_placebycitizenshipstatus.2009 = B05002_013E,
+          total_carib_1980.2009 = B05007_039E,
+          total_vacancy_O_status.2009 = B25002_003E,
+          total_householdtype_relationship.09 = B09016_002E,
+          med_hh_inc.09 = B19013_001E,
+          hh_65up.09 = B19037A_053E,
+          Total_b_100pov.09 = B06012_002E,
+          gross_v_income_percentage.09 = B25071_001E,
+          med_built_year.09 = B25035_001E,
+          tot_publicass_inc.09 = B19057_001E,
+          tot_housingunits.09 = B25001_001E,
+          cub_fb_total09 = B05006_127E,
+          med_houseval09 = B25077_001E
+          )%>%
+          mutate(vacancyPct.2009 = total_vacancy_O_status.2009/tot_housingunits.09) %>% # Get Vacanct Rate
+          st_as_sf(crs = crs)
+
+USA_2022 <- get_acs(geography = "county",
+                             year = 2022, 
+                             variables = acs22_vars, 
+                             geometry = TRUE, 
+                             output = "wide") 
+USA_2022 <- USA_2022 %>%
+         rename(
+         tot_below100pov22 = B06012PR_002E,
+         tot_vacant22 = B25002_003E,
+         med_inc22 = B21004_001E,
+         up65_alone22 = B09021_023E,
+         tot_housingunits22 =B25136_001E,
+         gross_v_inc_perc22 = B25071_001E,
+         tot_fb_cuba22 = B05006_143E,
+         tot_pa_inc22 = B19057_002E,
+         med_yb22 = B25035_001E,
+         med_values22 = B25077_001E)%>%
+  mutate(vacpct22 = (tot_vacant22/tot_housingunits22)) %>%
+  st_as_sf(crs = crs)
+
+#Merge the dataframes
+
+USA0922_df <- st_drop_geometry(USA_2022,USA_2009)%>%
+         left_join(USA_2009 , USA_2022, by= c("GEOID"))%>%
+         mutate(change_vac_pct = vacpct22 - vacancyPct.2009,
+           change_med_inc = med_inc22 - med_hh_inc.09,
+           change_med_values = med_values22 - med_houseval09,
+           change_count_housingunits= tot_housingunits22-tot_housingunits.09,
+           change_cuba_fb = tot_fb_cuba22 - cub_fb_total09,
+           change_pct_below100pov = tot_below100pov22 - Total_b_100pov.09)
+
+#Begin Filtering Process of COUNTIES THAT MEET DOUBLE CRITERIA
+
+##decrease
+USA0922_df_filtered_decrease <- USA0922_df %>%
+              dplyr:: filter(change_cuba_fb < -500)%>%
+              dplyr:: select(NAME.x, GEOID, geometry,cub_fb_total09, med_inc22,up65_alone22, tot_housingunits22,   gross_v_inc_perc22, change_count_housingunits, tot_pa_inc22,med_values22, vacpct22, change_med_values,change_cuba_fb, change_med_inc,                         change_vac_pct)
+
+##increase
+USA0922_df_filtered_increase <- USA0922_df %>% 
+     dplyr::  filter(change_cuba_fb > 500) %>%
+     dplyr::  select(NAME.x, GEOID, geometry, med_inc22,up65_alone22,cub_fb_total09, tot_housingunits22, gross_v_inc_perc22,   change_count_housingunits,                              tot_pa_inc22,med_values22, vacpct22, change_med_values, change_med_inc,                         change_vac_pct,change_cuba_fb)
+  
+#Combine the two dfs to create the filtered all counties object that will be used for the census tract level selected counties pull
+
+change_fbcuban0922<- rbind(USA0922_df_filtered_decrease, USA0922_df_filtered_increase)%>%
+  st_as_sf(crs = crs)
+
+
+
+
+```
+
+### Functions to Process the Selected Counties as inputs for their Census Tract Level Data 
+Upon analyzing the counties I chose using plus/minus 500 foreign born cubans as the cutoff for both decreasing and increasing changes in foreign born Cuban counts. I created an sf object of counties that between 2009-2022 had either lost or absorbed 500 foreign-born Cubans. I then used this as the input for an iterative call to get their census tract level data. 
+
+It is at this level that I desired to create the interactive map below. 
+
+
+It shows the census tract level data for the filtered counties. For additional context, I wanted to add another layer and see the presence of Cubans relative to the boundaries and centers of metropolitan/micropolitan areas. 
+
+**Processing Name Column to create columns with the County and State Arguments**
+
+The chunk below shows the two main things neccesary to transform the 'Name' column in county-level get_acs() output  to iterate those counties back into a new call for their respective census-tract data. 
+
+
+```{r COUNTY TO TRACT , echo=TRUE}
+
+split_county_state <- function(name) {
+  # Split the string on the comma to separate county and state
+  parts <- str_split(name, pattern = ",", n = 2, simplify = TRUE)
+  county <- trimws(parts[1])
+  state <- trimws(parts[2])
+
+  return(list(county = county, state = state))
+}
+
+clean_county_name <- function(county_name) {
+  # Remove 'County' from the end of the string and any leading/trailing spaces
+  cleaned_name <- sub("County$", "", county_name)
+  cleaned_name <- trimws(cleaned_name)
+  return(cleaned_name)
+}
+
+
+
+#apply the function to get the split vectors of 'county' and 'state' arguments for the 
+
+change_fbcuban0922_split <- change_fbcuban0922 %>%
+  mutate(
+    split_data = map(NAME.x, split_county_state),
+    County = map_chr(split_data, "county"),
+    State = map_chr(split_data, "state")
+  ) %>%
+ dplyr::  select(-split_data)%>%
+  mutate(cleaned_County = sapply(County, clean_county_name))# Remove the list column after extracting components
+
+```
+**Function Takes New Columns, Performs API Call, Combines Each output Into One Object**
+
+The following chunk of code creates the iterative functions that will take a 'county' and 'state' column and run a get_acs() tidy census call for both 2009 and 2022. The variables are different each year so they have to be done separately. 
+
+```{r ITERATE GETACS FUNCTION, echo=TRUE, cache=T}
+
+iterate_county22 <- function(df) {
+  # List to store the results
+  results_list <- list()
+
+  # Loop over each row of the dataframe
+  for (i in 1:nrow(df)) {
+    # Extract county and state from the current row
+    County <- df$cleaned_County[i]
+    State <- df$State[i]
+    
+    # Try to fetch ACS data, handling errors
+    acs_data <- tryCatch({
+      get_acs(
+        geography = "tract",  # Make sure geography is correctly specified
+        variables = "B05006_143E",  # Example variable: Total Population
+        state = State,
+        county = County,
+        year = 2022,
+        survey = "acs5",
+        geometry = TRUE
+      )
+    }, error = function(e) {
+      message("Failed for ", County, ", ", State, ": ", e$message)
+      NULL  # Return NULL on failure
+    })
+    
+    # Append the fetched data to the list, if not NULL
+    if (!is.null(acs_data)) {
+      results_list[[length(results_list) + 1]] <- acs_data
+    }
+  }
+
+  # Combine all the results into one data frame
+  final_data <- bind_rows(results_list)
+  return(final_data)
+}
+
+iterate_county09 <- function(df) {
+  # List to store the results
+  results_list <- list()
+
+  # Loop over each row of the dataframe
+  for (i in 1:nrow(df)) {
+    # Extract county and state from the current row
+    County <- df$cleaned_County[i]
+    State <- df$State[i]
+    
+    # Try to fetch ACS data, handling errors
+    acs_data <- tryCatch({
+      get_acs(
+        geography = "tract",  # Make sure geography is correctly specified
+        variables = "B05006_127E",  # Example variable: Total Population
+        state = State,
+        county = County,
+        year = 2009,
+        survey = "acs5",
+        geometry = TRUE
+      )
+    }, error = function(e) {
+      message("Failed for ", County, ", ", State, ": ", e$message)
+      NULL  # Return NULL on failure
+    })
+    
+    # Append the fetched data to the list, if not NULL
+    if (!is.null(acs_data)) {
+      results_list[[length(results_list) + 1]] <- acs_data
+    }
+  }
+
+  # Combine all the results into one data frame
+  final_data <- bind_rows(results_list)
+  return(final_data)
+}
+
+```
+**Applying the Function Create 2009 and 2022 Objects**
+
+```{r iteration, results='hide', echo=TRUE, message=FALSE, warning= FALSE, cache=T}
+# FEEL FREE TO RUN 'read_objects_from_file' CHUNK TO SAVE TIME
+final_acs09_data <- iterate_county09(change_fbcuban0922_split)
+final_acs22_data <- iterate_county22(change_fbcuban0922_split)
+```
+
+
+```{r export_objects, echo=FALSE, eval=F}
+#### Writing iterated counties as shapefiles (to reduce time)
+st_write(final_acs09_data,"data/final_acs09_data.shp")
+st_write(final_acs22_data,"data/final_acs22_data.shp")
+```
+
+```{r read_objects_from_file, echo=FALSE, eval=F}
+#### reading iterated counties shapefiles (to reduce time)
+if (file.exists("data/final_acs09_data.shp")==T){
+final_acs09_data <- st_read("data/final_acs09_data.shp")
+}
+if (file.exists("data/final_acs22_data.shp")==T){
+final_acs22_data <- st_read("data/final_acs22_data.shp")
+}
+```
+
+**Transforming Tract Data and Calculating The Change In Foreign Born Cubans**
+```{r Transforming Cen}
+
+final_acs09_data<-final_acs09_data %>%
+                  rename(cub_fb_total09 = estimate)
+
+final_acs22_data<- final_acs22_data %>%
+                  rename(tot_fb_cuba22 = estimate)
+
+final_viz_change <- st_drop_geometry(final_acs09_data) %>%
+ dplyr::  select(GEOID, cub_fb_total09) %>%  # Select only the columns needed for computing change
+  left_join(final_acs22_data, by = "GEOID") %>%
+  mutate(change_cuba_fb = tot_fb_cuba22 - cub_fb_total09)
+
+#dropNA values in change, won't visualize.
+final_viz_change_droppedNA <- final_viz_change[!is.na(final_viz_change$change_cuba_fb), ]
+
+final_viz_change_droppedZ_and_NA <- final_viz_change_droppedNA[(final_viz_change_droppedNA$change_cuba_fb) != 0,]
+
+#Add Geometry back
+final_viz_change_droppedNA<- final_viz_change_droppedNA%>%
+                             st_as_sf(sf_column_name='geometry')
+
+final_viz_change_droppedZ_and_NA<- final_viz_change_droppedZ_and_NA%>%
+                             st_as_sf(sf_column_name='geometry')
+```
+
+# <span style="color: '#3B914e';font-weight: bold;">Data Analysis and Results</span>
+
+
+## Metropolitan / Micropolitan Tables and Summaries {.tabset}
+
+The following tables show the markets that remained when I applied previously described filters to the metro/micropolitan areas of the United States. I have sorted them firstly using the the highest counts of Foreign-Born Cubans. The Green column highlights the counts, the yellow column compares the gross rent to income ratios. It is also worth noting the counts of total housing units as they speak to the scale of the markets. 
+
+Disclaimer: because there are outlier markets, for the count of housing units I chose to go with the median rather than the average. 
+
+### Metropolitan Areas Outside of Florida
+
+**Table **
+
+```{r , results='asis', format='html'}
+
+# Sorting the data
+noFL_metros_sorted <- noFL_metros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+noFL_metros_kable <- noFL_metros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+  kbl(caption = "Metropolitan Areas Outside Florida") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e') 
+ 
+
+# Print the table to view in an RMarkdown output or similar
+noFL_metros_kable
+```
+
+**Summary statistics **
+
+```{r , results='asis', format='html'}
+
+summary_stats_noflmetros <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio(Percentage)", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(1026146, 30.0, 2054, 1980),0
+))
+
+# Generate kable table
+kable(summary_stats_noflmetros, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = '#68a6d5')
+
+```
+
+
+### Metropolitan Areas in Florida
+
+**Table**
+```{r, results='asis', format='html'}
+
+# Sorting the data
+fl_metros_sorted <- fl_metros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+fl_metro_kable <- fl_metros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+ kableExtra::  kbl(caption = "Florida Metropolitan Areas") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e') 
+
+# Print the table to view in an RMarkdown output or similar
+fl_metro_kable
+```
+
+**Summary Statistics**
+```{r , results='asis', format='html'}
+
+summary_stats_flmetros <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio(Percentage)", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(260981, 33.08, 4322, 1989), 0)
+)
+
+# Generate kable table
+kable(summary_stats_flmetros, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = '#68a6d5')
+
+```
+
+
+### Micropolitan Areas in Florida
+
+**Table**
+```{r , results='asis', format='html'}
+
+# Sorting the data
+fl_micros_sorted <- fl_micros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+fl_micros_kable <- fl_micros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+  kbl(caption = "Florida Micropolitan Areas") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e')
+
+# Print the table to view in an RMarkdown output or similar
+fl_micros_kable
+```
+
+**Summary Statistics**
+```{r results='asis', format='html'}
+
+summary_stats_flmicro <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(18496, 31.49, 251, 1986),0)
+)
+
+# Generate kable table
+kable(summary_stats_flmicro, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+ row_spec(0, bold = TRUE, background = '#68a6d5')
+
+
+```
+
+
+### Micropolitan Areas Outside of Florida
+
+**Table**
+```{r results='asis', format='html'}
+
+
+# Sorting the data
+noFL_micros_sorted <- noFL_micros %>%
+  dplyr::arrange(desc(tot_fb_cuba22))
+
+# Creating the table with kable and kableExtra
+
+noFL_micros_kable <- noFL_micros_sorted %>%
+  st_drop_geometry()%>%
+  dplyr:: mutate(Total_Housing_Units=tot_housingunits22, Rent_Income_Ratio22=gross_v_inc_perc22, Total_FB_Cubans=tot_fb_cuba22, Med_Year_Built= med_yb22)%>%
+  dplyr:: select(NAME, Total_Housing_Units,Rent_Income_Ratio22,Total_FB_Cubans, Med_Year_Built )%>%
+  kbl(caption = "Micropolitan Areas Outside of Florida") %>%
+  kable_classic(full_width = F, html_font = "Georgia") %>%
+  kable_styling(
+    position = "center",
+    font_size = 12,
+    
+  ) %>%
+  column_spec(1, bold = TRUE, color = "#ca5733") %>%
+  column_spec(3, background = '#fbc61d')%>%
+  column_spec(4, bold = TRUE, background = '#3b914e')
+ 
+
+# Print the table to view in an RMarkdown output or similar
+noFL_micros_kable
+```
+
+**Summary Statistics**
+
+```{r results='asis', format='html'}
+
+summary_stats_nofl_micros <- data.frame(
+  Statistic = c("Median Count Total Housing Units", "Average Rent to Income Ratio(Percentage)", 
+                "Median Count of Foreign Born Cubans", "Mean Year Structure Built"),
+  Value = round(c(17833, 25.81, 160, 1976),0)
+)
+
+# Generate kable table
+kable(summary_stats_nofl_micros, format = "html", col.names = c("Statistic", "Value"), 
+      caption = "Summary Statistics") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = FALSE) %>%
+  row_spec(0, bold = TRUE, background = '#68a6d5')
+
+```
+
+## Correlations/Regressions 
+
+For each of the models that I ran I looked at how the total count of foreign born cubans was impacted by the variables shown above (total number of housing units, gross rent to income ratios, or the median year of structures. The results of the regressions below lack predictive power.Highlighting a need for better feature engineering to predict what markets attract Cuban immigrants.  
+
+There were times when the total count of housing units showed up as a significant predictor (p-value < 0.001). But it did not make a noticeable difference in the count of foreign born Cubans per unit of increase. The analysis would benefit from more preparation to catch outliers, and a larger quantity of observations.
+
+Below are some results from the exploratory analysis.
+
+**Outside of Florida: Metropolitan Areas Regression ** 
+
+The total Count of Housing Units was a significant predictor until I removed the New York/Newark metropolitan area from the model's observations. Even then, it did not make significant change in the count per unit of housing increased (less than a person).
+
+Below is a scatter plot showing that the metropolitan areas outside of Florida that Cuban Immmigrants tend to live have less than 3 million housing units. Really, there is a visible concentration below in metropolitan areas with less than 2 million housing units. This can mean that the settlement choices of Cubans are smaller markets than a world city like New York, for instance. 
+
+```{r , noFL_Metros Regression, echo=TRUE}
+
+#remove outlier (NY NJ) for better scatterplot of housing units
+
+noFL_metros<- noFL_metros%>%
+  filter(!str_detect(NAME, 'New York'))
+
+noFL_metro_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22+  med_yb22, data=noFL_metros)
+
+summary(noFL_metro_fit)
+
+plot(noFL_metros$tot_fb_cuba22, noFL_metros$tot_housingunits22)
+
+
+```
+
+
+**Florida: Metropolitan Areas Regression**
+
+When it comes to Florida, Tampa and Miami are clear outliers ran the same regression as above. The adjusted R square was .74, suggesting a stronger model with the few variables that we have. Again, strong predictors were housing units (p-value <0.005) and the median year of built structures(p < 0.002). 
+
+Below is a scatterplot of the Total count of housing units and the total count of foreign born Cubans. 
+
+```{r , FL_Metros Regression}
+
+#filter out Miami for scatterplot
+fl_metros<- fl_metros%>%
+  filter(!str_detect(NAME, c('Miami|Tampa')))
+
+fl_metros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_metros)
+summary(fl_metros_fit)
+
+plot(fl_metros$tot_fb_cuba22, fl_metros$tot_housingunits22)
+
+
+```
+
+
+
+**Outside of Florida: Micropolitan Areas**
+
+The resulting regression did not return any strong predictors. This could be due to the distribution of the data, seen below. It makes sense given that we are talking about micropolitan areas. My theory is that the decision to settle in these areas is due to factors that would require deeper investigation than one using Census data. They may be more nuanced and network-related. Interviews and oral histories would best shed light on this aspect of the Cuban migration story.
+
+```{r , noF_Micros Regression}
+
+noFl_micro_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=noFL_micros)
+summary(noFl_micro_fit)
+plot(noFL_micros$tot_housingunits22, noFL_micros$tot_fb_cuba22)
+
+
+
+```
+
+
+**Florida: Micropolitan Areas Regression**
+
+There are too few observations to make any meaningful statistical inferences for this subset of data. However, like with the micropolitan areas outside of Florida, it would be good to investigate deeper the roots of their Cuban communities.
+
+```{r , FL_Micros Regression}
+
+Florida_micros_fit <- lm(tot_fb_cuba22 ~ tot_housingunits22 + gross_v_inc_perc22 + med_yb22, data=fl_micros)
+summary(Florida_micros_fit)
+plot(fl_micros$tot_housingunits22, fl_micros$tot_fb_cuba22)
+
+
+```
+
+
+
+## Regressions: County and Census Tracts in 2009 on the Count of Change
+
+In the following data analysis I examine the relationship between the count of foreign-born  Cubans in 2009 and the change observed in 2022. I look at the County and Census tract levels using the filtered objects from the Census API calls.
+
+**Census Tracts**
+
+In the final dataset used to generate the interactive map, there are 4549 census tracts that do not have NA or 0 values of change in the count of Cubans between 2009 and 2022.The chunk below attempts to get a spearman and pearson coefficient, -0.46 and 0.10 respectively, for the relationship between counts of cubans in 2009 and the change observed in 2022. At the census tract level, the count of Cubans in 2009 could not by itself predict the changes observed in counts in 2022. 
+
+```{r r2 Migration Census Tracts, echo=TRUE}
+
+spearman<-cor(final_viz_change_droppedZ_and_NA$cub_fb_total09, final_viz_change_droppedZ_and_NA$change_cuba_fb, method="spearman")  
+pearson<- cor(final_viz_change_droppedZ_and_NA$cub_fb_total09, final_viz_change_droppedZ_and_NA$change_cuba_fb, method="pearson")       #method can be 
+
+final_tracts_fit <- lm(change_cuba_fb ~ cub_fb_total09,
+data=final_viz_change_droppedZ_and_NA)
+summary(final_tracts_fit)
+
+```
+
+
+**County Level**
+
+For this analysis I removed an outlier by making it only the counties that had less than 100000 foreign born cubans in 2009. But then i Went further and kept only those with 10000. The slight linear relationship between the presence of the community in 2009 and the changes that were observed gives some credence to the idea that people move based on their network. Perhaps scale varies the migration's absorption. For instance, Miami has a huge presence and gets the highest rices in counts. Perhaps that is an underlying characteristic of migration processes that sounds like the first law in geography. Places that already have migrants from a particular region will receive more of their people, but places with with even more presence will absorb more. 
+
+I did the same tests as above. Pearson and Spearman correlation results were 0.64, 0.31 respectively when i kept only counties that in 2009 had at most 10,000 cubans. When I add the outliers back in, the pearson coefficient increases to 0.94, and the regression returns an adjusted R2 of 0.88 and an a p-value < 0.0001 for the the count of foreign born cubans in 2009. 
+
+A note on Miami:it is an outlier as a value, but it is a very significant piece of the Cuban migration history and its high number only speaks to the scale of its connection to the Cuban immigrants. It would naturally supports the idea that people are still following their networks as the regression shows. Without the presence of such a strong magnet Cuban still grew slightly where they already were. But some counties decreased in counts of FB Cubans, why are they leaving?
+
+```{r}
+
+#object w the countties
+change_fbcuban0922$cub_fb_total09
+change_fbcuban0922$change_cuba_fb
+
+#filter outlier
+change_fbcuban0922reg<-change_fbcuban0922
+
+cor(change_fbcuban0922reg$cub_fb_total09,
+change_fbcuban0922reg$change_cuba_fb, method='spearman')
+cor(change_fbcuban0922reg$cub_fb_total09,
+change_fbcuban0922reg$change_cuba_fb, method='pearson')
+
+hist(change_fbcuban0922reg$change_cuba_fb)
+plot(change_fbcuban0922reg$cub_fb_total09,
+change_fbcuban0922reg$change_cuba_fb)
+final_counties_fit <- lm(change_cuba_fb ~ cub_fb_total09,
+data=change_fbcuban0922)
+summary(final_counties_fit)
+
+
+
+
+```
+
+
+
+# <span style="color: '#fbc61d';font-weight: bold;"> Discussion and Conclusion </span>
+
+
+## Census Tract Level Interactive Map
+
+The interactive map below is my favorite part about combining curiousity about a research question and understanding how to leverage computer programming to create a cool visual tool. Below are the census tracts across the United States that show changes to their Count of Foreign Born Cubans between 2009 and 2022. When you click a tract, the value of change will pop up. Another key piece of this interactive map is that it allows us to see the relationship between Cuban migration and the structure of the metropolitan region. When the tracts are outside of urban centers, what does it mean? When they are near city centers, how long have they been there? What kind of neighborhood? Overall, I think this tool can help researchers of Cuban history consider differently the footprint of the Cuban diaspora relative to the centuries of history that defined the U.S-Havana relationship. Especially the waves of migration that have taken place the past 65 years.
+
+```{r , echo=FALSE, format='html', warning=FALSE}
+# Install (if necessary) and load the tmap package
+if (!requireNamespace("tmap", quietly = TRUE)) {
+    install.packages("tmap")
+}
+if (!requireNamespace("webshot", quietly = TRUE)) {
+    install.packages("webshot")
+    webshot::install_phantomjs()
+}
+
+if (!requireNamespace("webshot2", quietly = TRUE)) {
+    install.packages("webshot2")
+}
+
+library(tmap)
+library(dplyr)
+library(sf)
+tmap_options(check.and.fix = TRUE)
+
+# Set tmap mode to interactive viewing
+tmap_mode("view")
+
+plot_final<-final_viz_change_droppedZ_and_NA%>%
+  mutate(Count_Change=change_cuba_fb)%>%
+  st_as_sf()
+
+plot_final <- plot_final %>%
+  mutate(formatted_change_cuba_fb = format(change_cuba_fb, big.mark=",", scientific=FALSE))
+ #st_simplify(plot_final, dTolerance = 0.01, preserveTopology = TRUE)
+ 
+# Set tmap mode to interactive viewing
+tmap_mode("view")
+# Create the map
+tm <- tm_shape(plot_final
+               # name = "My Map"
+               ) + 
+     tm_polygons("Count_Change", breaks = c(-1015, -500, -250, 0, 250, 500, 1847), 
+                 title = "Change in Count of Foreign Born Cubans",
+                 id = "Count of Change",
+                 palette = "-RdYlBu",  # Color palette
+                 alpha = 0.6,
+                 border.col = "black"  # Border color for polygons
+                 ) +  # Border transparency
+     # tm_text("formatted_change_cuba_fb") +
+     tm_layout(title = '2009-2022 ACS 5- Year Estimates: Foreign-Born Cuban Migration')+
+     tm_basemap("Esri.WorldStreetMap") #+
+     # tm_view(view.legend.position = c("right", "bottom")) 
+
+     
+# Print the map
+#tm2<-tmap_leaflet(tm)
+    
+    
+
+tmap_save(tm, 'working_outputs/tmap/Capstone_int_Map_change.html')
+
+
+# print(tmap_leaflet(tm))
+tm<-tmap_leaflet(tm)
+
+tm
+#print(tm)
+
+
+```
+
+<iframe src="working_outputs/tmap/Capstone_int_Map_change.html" data-external="1" style="width:100%; height:600px;"></iframe>
+
+
+## Conclusion
+
+The economic situation in Cuba is becoming increasingly more difficult for the majority of the population. High inflation, lack of goods, and the emigration of young people are a few of the reasons why. In this context, transnational Cubans buy and sell properties, utilizing their purchasing power to renovate buildings, apartments, or construct new structures altogether. Articles confirm that investing in Cuba is affordable. Many of the investments are meant to create Airbnbs, others are to create spaces of belonging from the perspective of the transnational Cuban. 
+
+At a smaller scale, remittances sent to Cuba are one of the few release valves for families that are under pressure to survive a life defined by scarcity. Remittances are transactions that connect two places. The World Bank defines them as portions of a migrant worker's income that is sent to a person in their country of origin. Through photographs included in the Powerpoint presentation of this project, the functions of remittance capital investment are visible in Cuba's built environment. However, the places where the capital originates is a bit more obscure. In light of a recent surge of migration into the United States, I wanted to answer the questions: "where are the foreign-born Cubans in the United States?" and "how have their numbers changed over time?" The hope was to identify and analyze places of remittance capital production for Cuban migrants. 
+
+Using an iterative process, the interactive map in this report shows the changes in counts of foreign-born Cuban migrants at the census tract level across a set of selected counties. The counties that had increases or decreases of 500 or more of the population under study  between 2009 and 2022. This visualization gives access to researchers and those that want to find Cuban communities in the United States to a spatial way if seeing the story of Cuban migration. Ultimately, its main contribution to the field of Cuban remittance landscapes and economics is a look at the places in America that will most likely absorb the 420,000+ Cubans that have entered the United States in the past 3 years. A significant portion of them will send money back to their families or travel back with luggages full of dried foods basic goods/gifts. Through Western Union services, they can send money straight into Cuban bank accounts of their families. These activities, and the efforts of those on the island in the face of 60+ years of strong sanctions against them, has resulted in Cuba's global identity as a place of resistance and resilience. 
+
+In this report I have included tables of metropolitan and micropolitan  areas inside and outside of Florida with more than 1000 or 100 foreign-born Cubans respectively. I wanted to see, based on the markets where Cubans were settled, what was the gross rent to income ratio as a percentage and other information. I wanted to put myself in my mother's shoes when she came to the US. Like many, she followed her network to Tampa, Florida. But what if she knew where she could go to lower the impact of housing costs on her family's standard of living? That she could have more money to send to her parents in Cuba? The city of Louisville stood out in the list of metropolitan areas outside of Florida because it had a count of +13000 Cubans and a low gross rent to income ratio. It is possible that it is a good place to move to if you are a new Cuban migrant to the US. 
+
+The analysis hints at the importance of context when it comes to the settlement patterns of migrants. At the county level the count of foreign-born cubans in 2009 was a strong predictor of the change observed in 2022 ACS 5-Year Estimates. I think that this project was a journey and the beginning of a lot more research. One could go in the direction of analyzing point of interest counts from open API requests to discuss power and influence, or drive around in the tracts looking for signs of the presence of Cubans. What kind of spaces are they creating? In the world of programmatic advertising, this preliminary research could guide a geomarketing campaign for a firm that offers Cuban remittance economy services as well as the demographic under study is their main client.
+
+```{r knit_etc., eval=F, include=F}
+### not a good-looking as the knitr function
+rmarkdown::render(input="cuba migration analysis.Rmd",output_format = "html_document",output_file = "working_outputs/cuba_migration_analysis.html")
+```
